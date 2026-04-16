@@ -1281,10 +1281,14 @@ function renderShiftCal(){
       <div class="cal-grid" style="gap:2px;">${cellsHtml}</div>`;
   }
 
-  const m1Year=currentMonth===1?currentYear-1:currentYear;
-  const m1Month=currentMonth===1?11:currentMonth-2;
-  const m2Year=currentYear;
-  const m2Month=currentMonth-1;
+  // 期間は (currentMonth-1)月21日 〜 currentMonth月20日
+  // → 前月 = currentMonth-1月、当月 = currentMonth月
+  const m1Month0 = currentMonth - 2; // 0-indexed: 前月
+  const m1Year = m1Month0 < 0 ? currentYear - 1 : currentYear;
+  const m1Month = m1Month0 < 0 ? 11 : m1Month0;
+  const m2Month0 = currentMonth - 1; // 0-indexed: 当月
+  const m2Year = m2Month0 < 0 ? currentYear - 1 : currentYear;
+  const m2Month = m2Month0 < 0 ? 11 : m2Month0;
 
   container.innerHTML=buildShiftMonthCal(m1Year,m1Month)+buildShiftMonthCal(m2Year,m2Month);
 }
@@ -2311,10 +2315,13 @@ function renderWishArea(pk,pkW,pkDone){
   // 期間は21日〜翌月20日なので2ヶ月分表示
   // currentMonth は表示月（21日〜翌20日の"翌月"番号）
   // 例：currentMonth=5 → 4/21〜5/20 → 4月と5月を表示
-  const m1Year=currentMonth===1?currentYear-1:currentYear;
-  const m1Month=currentMonth===1?11:currentMonth-2; // 0-indexed, 前月
-  const m2Year=currentYear;
-  const m2Month=currentMonth-1; // 0-indexed, 当月
+  // 期間は (currentMonth-1)月21日 〜 currentMonth月20日
+  const _m1m0 = currentMonth - 2;
+  const m1Year = _m1m0 < 0 ? currentYear - 1 : currentYear;
+  const m1Month = _m1m0 < 0 ? 11 : _m1m0;
+  const _m2m0 = currentMonth - 1;
+  const m2Year = _m2m0 < 0 ? currentYear - 1 : currentYear;
+  const m2Month = _m2m0 < 0 ? 11 : _m2m0;
 
   el.innerHTML=`
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
