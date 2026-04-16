@@ -501,6 +501,19 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
       </div>
     </div>
 
+    <!-- 勤務時間希望（通常出勤・有給以外でも設定可） -->
+    <div id="wish-work-time-detail" style="display:none;margin-top:12px;background:#f0f7ff;border-radius:8px;padding:12px;">
+      <div style="font-size:13px;font-weight:700;color:#1565c0;margin-bottom:8px;">🕐 勤務時間の希望（任意）</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div><label>開始時間</label><input type="time" id="wish-work-start" value="08:30"/></div>
+        <div><label>終了時間</label><input type="time" id="wish-work-end"   value="18:30"/></div>
+      </div>
+      <div style="margin-top:8px;">
+        <label>休憩時間（分）</label>
+        <input type="number" id="wish-work-rest" value="60" min="0" max="120" inputmode="numeric" style="width:80px;"/>
+      </div>
+    </div>
+
     <div class="modal-foot">
       <button class="btn btn-outline" onclick="closeModal('wish-day-modal')">キャンセル</button>
       <button class="btn btn-danger btn-sm" onclick="clearWishDay()">クリア</button>
@@ -1454,9 +1467,12 @@ function renderWishArea(pk,pkW){
         if(w){
           if(w.type==='off'){bg='#fde8e8';border='#f5c6cb';label+=`<br><span style="font-size:9px;">😴希望休</span>`;}
           else if(w.type==='paid'){
-            bg='var(--purple-lt)';border='#ce93d8';
+            bg='#ede7f6';border='#ce93d8';
             const pl=w.paidType==='half'?`半日(${w.paidAmPm==='am'?'午前':'午後'})`:w.paidType==='custom'?`${fmt(w.paidStart)}–${fmt(w.paidEnd)}`:'全日';
             label+=`<br><span style="font-size:9px;">🟣有給(${pl})</span>`;
+          } else if(w.type==='work'){
+            bg='#e3f2fd';border='#90caf9';
+            label+=`<br><span style="font-size:9px;">🕐${fmt(w.workStart)}–${fmt(w.workEnd)}</span>`;
           }
         }
         return `<button onclick="openWishDayModal('${pk}','${s.id}','${dk}')" style="
@@ -1493,12 +1509,18 @@ function openWishDayModal(pk,staffId,dk){
       document.getElementById('wish-paid-cend').value=w.paidEnd||'12:30';
     }
   }
+  // 勤務時間希望の復元
+  document.getElementById('wish-work-start').value=w&&w.workStart?w.workStart:(getDayType(new Date(dk))==='saturday'?'08:30':'08:30');
+  document.getElementById('wish-work-end').value  =w&&w.workEnd  ?w.workEnd  :(getDayType(new Date(dk))==='saturday'?'16:00':'18:30');
+  document.getElementById('wish-work-rest').value =w&&w.workRest!==undefined?w.workRest:60;
   document.getElementById('wish-day-modal').classList.add('open');
 }
 
 function onWishTypeChange(){
   const t=document.getElementById('wish-type-sel').value;
   document.getElementById('wish-paid-detail').style.display=t==='paid'?'':'none';
+  // 勤務時間希望は「通常出勤」「有給（時間指定以外）」のときに表示
+  document.getElementById('wish-work-time-detail').style.display=(t==='none'||t==='paid')?'':'none';
   if(t==='paid'){document.getElementById('wish-paid-type').value='full';onWishPaidTypeChange();}
 }
 function onWishPaidTypeChange(){
@@ -1509,12 +1531,23 @@ function onWishPaidTypeChange(){
 
 function saveWishDay(){
   const t=document.getElementById('wish-type-sel').value;
+  const ws=document.getElementById('wish-work-start').value;
+  const we=document.getElementById('wish-work-end').value;
+  const wr=parseInt(document.getElementById('wish-work-rest').value)||60;
   const wishes=loadWishes();
   if(!wishes[wishModalPk])wishes[wishModalPk]={};
   if(!wishes[wishModalPk][wishModalStaffId])wishes[wishModalPk][wishModalStaffId]={};
 
+  // 勤務時間希望があるかチェック（デフォルト値以外かどうか）
+  const hasWorkTime=(ws&&we&&(ws!=='08:30'||we!=='18:30'||wr!==60));
+
   if(t==='none'){
-    delete wishes[wishModalPk][wishModalStaffId][wishModalDk];
+    if(hasWorkTime){
+      // 勤務時間希望のみ保存
+      wishes[wishModalPk][wishModalStaffId][wishModalDk]={type:'work',workStart:ws,workEnd:we,workRest:wr};
+    } else {
+      delete wishes[wishModalPk][wishModalStaffId][wishModalDk];
+    }
   } else if(t==='off'){
     wishes[wishModalPk][wishModalStaffId][wishModalDk]={type:'off'};
   } else if(t==='paid'){
@@ -1528,6 +1561,8 @@ function saveWishDay(){
         alert('開始・終了時間を正しく入力してください');return;
       }
     }
+    // 勤務時間希望も付加（半日・全日の場合）
+    if(pt!=='custom'&&hasWorkTime){entry.workStart=ws;entry.workEnd=we;entry.workRest=wr;}
     wishes[wishModalPk][wishModalStaffId][wishModalDk]=entry;
   }
   saveWishes(wishes);
@@ -1607,7 +1642,7 @@ function autoCreateShift(){
     const sWishes=pkWishes[s.id]||{};
     log.push(`\n【${s.name}（常勤A）】`);
 
-    // 希望（有給・休み）を先に登録
+    // 希望（有給・休み・勤務時間）を先に登録
     Object.keys(sWishes).forEach(dk=>{
       const w=sWishes[dk];
       const d=new Date(dk);
@@ -1618,6 +1653,9 @@ function autoCreateShift(){
       } else if(w.type==='off'){
         addShift(pk,d,{staffId:s.id,type:'off'});
         log.push(`  ${dk} → 希望休✅`);
+      } else if(w.type==='work'){
+        // 勤務時間希望は後で出勤登録時に使うためスキップ（フラグとして残す）
+        log.push(`  ${dk} → 勤務時間希望🕐(${fmt(w.workStart)}–${fmt(w.workEnd)})`);
       }
     });
 
@@ -1650,13 +1688,15 @@ function autoCreateShift(){
         }
       }
 
-      // 残りは出勤
+      // 残りは出勤（勤務時間希望があれば反映）
       wDates.forEach(d=>{
         if(!getShiftFor(pk,d,s.id)){
           const dt=getDayType(d);
-          const st=s.prefStart||'08:30';
-          const en=dt==='saturday'?(s.prefEndSat||'16:00'):(s.prefEnd||'18:30');
-          const re=s.prefRest!==undefined?s.prefRest:data.defaultRest;
+          const dk2=dateKey(d);
+          const ww=sWishes[dk2];
+          const st=ww&&ww.workStart?ww.workStart:(s.prefStart||'08:30');
+          const en=ww&&ww.workEnd  ?ww.workEnd  :(dt==='saturday'?(s.prefEndSat||'16:00'):(s.prefEnd||'18:30'));
+          const re=ww&&ww.workRest!==undefined?ww.workRest:(s.prefRest!==undefined?s.prefRest:data.defaultRest);
           addShift(pk,d,{staffId:s.id,type:'work',start:st,end:en,rest:re});
           if(d.getDay()===6)satCount[s.id]++;
         }
@@ -1729,9 +1769,11 @@ function autoCreateShift(){
     busyFirst.forEach(d=>{
       if(getShiftFor(pk,d,s.id))return; // 既に設定済み
       const dt=getDayType(d);
-      const st=s.prefStart||'08:30';
-      const en=dt==='saturday'?(s.prefEndSat||'16:00'):(s.prefEnd||'18:30');
-      const re=s.prefRest!==undefined?s.prefRest:data.defaultRest;
+      const dk2=dateKey(d);
+      const ww=sWishes[dk2];
+      const st=ww&&ww.workStart?ww.workStart:(s.prefStart||'08:30');
+      const en=ww&&ww.workEnd  ?ww.workEnd  :(dt==='saturday'?(s.prefEndSat||'16:00'):(s.prefEnd||'18:30'));
+      const re=ww&&ww.workRest!==undefined?ww.workRest:(s.prefRest!==undefined?s.prefRest:data.defaultRest);
       const hrs=calcNet(st,en,re);
       if(totalHrs+hrs>limit){
         // 時間超過 → 休みに
