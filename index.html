@@ -1409,10 +1409,10 @@ function renderWishInput(){
     const isActive=s.id===wishActiveStaff;
     const cnt=Object.keys(pkW[s.id]||{}).length;
     return `<button onclick="switchWishStaff('${s.id}')" style="
-      padding:8px 12px;border-radius:20px;border:2px solid ${isActive?tc:var(--border)};
+      padding:8px 12px;border-radius:20px;border:2px solid ${isActive?tc:'#e0e0e0'};
       background:${isActive?bc:'#fff'};color:${isActive?tc:'#666'};
       font-size:12px;font-weight:700;cursor:pointer;">
-      ${s.name}${cnt>0?` <span style="background:var(--red);color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;">${cnt}</span>`:''}
+      ${s.name}${cnt>0?`<span style="background:#dc3545;color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:4px;">${cnt}</span>`:''}
     </button>`;
   }).join('');
 
