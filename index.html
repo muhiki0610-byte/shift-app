@@ -1071,14 +1071,43 @@ function renderShift(){
     const today=new Date();
     const isToday=date.getFullYear()===today.getFullYear()&&date.getMonth()===today.getMonth()&&date.getDate()===today.getDate();
 
+    // スタッフ出勤サマリー（カードヘッダー用）
+    let summaryHtml='';
+    if(dayType==='holiday'){
+      // 休日：当番者のみ表示
+      const dutyS=dutyEntry&&dutyEntry.staffId?data.staff.find(s=>s.id===dutyEntry.staffId):null;
+      summaryHtml=dutyS
+        ?`<span style="font-size:11px;background:#d4edda;color:#155724;border-radius:4px;padding:2px 6px;white-space:nowrap;">🟢${dutyS.name}</span>`
+        :`<span style="font-size:11px;color:#ccc;">当番未設定</span>`;
+    } else {
+      summaryHtml=data.staff.map(s=>{
+        // 固定勤務スタッフ（B・C）はシフト登録がなければデフォルト出勤
+        const entry=shifts.find(e=>e.staffId===s.id);
+        let icon,color,bg2;
+        if(entry&&entry.type==='off'){
+          icon='🔴';color='#b71c1c';bg2='#ffebee';
+        } else if(entry&&entry.type==='paid'){
+          icon='🟣';color='#7b1fa2';bg2='#f3e5f5';
+        } else {
+          icon='🟢';color='#155724';bg2='#d4edda';
+        }
+        return `<span style="font-size:11px;background:${bg2};color:${color};border-radius:4px;padding:2px 5px;white-space:nowrap;">${icon}${s.name}</span>`;
+      }).join('');
+    }
+
     const card=document.createElement('div');
     card.className=`day-card ${bg}${isToday?' open':''}`;
     card.innerHTML=`
       <div class="day-card-head" onclick="this.parentElement.classList.toggle('open')">
-        <span class="day-date" style="color:${dowCol};">${date.getMonth()+1}/${date.getDate()}${isToday?'<span style="font-size:10px;background:var(--blue);color:#fff;border-radius:3px;padding:1px 4px;margin-left:4px;">今日</span>':''}</span>
-        <span class="day-dow" style="color:${dowCol};">${DOW_JP[dow]}${holTag}</span>
-        <div class="day-badges">${badges}</div>
-        <span class="day-toggle">▾</span>
+        <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span class="day-date" style="color:${dowCol};flex-shrink:0;">${date.getMonth()+1}/${date.getDate()}${isToday?'<span style="font-size:10px;background:var(--blue);color:#fff;border-radius:3px;padding:1px 4px;margin-left:4px;">今日</span>':''}</span>
+            <span class="day-dow" style="color:${dowCol};flex-shrink:0;">${DOW_JP[dow]}${holTag}</span>
+            <div class="day-badges">${badges}</div>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:4px;padding-left:2px;">${summaryHtml}</div>
+        </div>
+        <span class="day-toggle" style="flex-shrink:0;margin-left:6px;">▾</span>
       </div>
       <div class="day-body">${bodyHtml}</div>`;
     container.appendChild(card);
