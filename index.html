@@ -325,7 +325,10 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
   <!-- シフトカード一覧 -->
   <div id="shift-day-list"></div>
 
-  <button class="btn btn-outline btn-block" style="margin-bottom:16px;" onclick="window.print()">🖨️ 印刷</button>
+  <div style="display:flex;gap:8px;margin-bottom:16px;">
+    <button class="btn btn-outline" style="flex:1;" onclick="window.print()">🖨️ 印刷</button>
+    <button class="btn btn-success" style="flex:1;touch-action:manipulation;" onclick="exportCSV()">📊 CSVダウンロード</button>
+  </div>
 </div>
 
 <!-- ===== ページ: 当番 ===== -->
@@ -403,12 +406,26 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
     既存のシフトは上書きされます。
   </div>
 
+  <!-- 入力状況サマリー -->
+  <div class="card">
+    <div class="card-hd">📋 入力状況</div>
+    <div class="card-bd" id="wish-status-list" style="padding:8px;"></div>
+  </div>
+
   <!-- スタッフ選択タブ -->
   <div class="card">
     <div class="card-hd">📝 希望入力（スタッフを選んでください）</div>
     <div class="card-bd" style="padding:8px;">
       <div id="wish-staff-tabs" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;"></div>
       <div id="wish-input-area"></div>
+      <!-- 入力完了ボタン -->
+      <div id="wish-complete-btn-area" style="margin-top:16px;display:none;">
+        <div id="wish-complete-btn" style="
+          display:block;width:100%;padding:16px;border-radius:12px;
+          text-align:center;font-size:16px;font-weight:700;cursor:pointer;
+          touch-action:manipulation;user-select:none;-webkit-user-select:none;">
+        </div>
+      </div>
     </div>
   </div>
 
@@ -428,6 +445,72 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
   <div class="card" id="auto-result-card" style="display:none;">
     <div class="card-hd">📋 作成結果</div>
     <div class="card-bd" id="auto-result-log" style="font-size:12px;line-height:2;"></div>
+  </div>
+</div>
+
+<!-- ===== ページ: シフト最終確認 ===== -->
+<div id="page-finalize" class="page">
+  <div class="month-bar">
+    <button class="mbtn" onclick="changeMonth(-1)">‹</button>
+    <span id="finalize-month-label">--</span>
+    <button class="mbtn" onclick="changeMonth(1)">›</button>
+  </div>
+
+  <!-- 確定状況 -->
+  <div class="card" id="finalize-status-card">
+    <div class="card-hd">📋 シフト確定状況</div>
+    <div class="card-bd" id="finalize-status-body"></div>
+  </div>
+
+  <!-- 認証：常勤スタッフを選択 -->
+  <div class="card" id="finalize-auth-card">
+    <div class="card-hd">👤 あなたは誰ですか？（常勤のみ）</div>
+    <div class="card-bd">
+      <p style="font-size:12px;color:#888;margin-bottom:10px;">最終確定は常勤スタッフのみ操作できます</p>
+      <div id="finalize-staff-btns" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+    </div>
+  </div>
+
+  <!-- 最終確定ボタン（認証後に表示） -->
+  <div id="finalize-action-area" style="display:none;">
+
+    <!-- CSV -->
+    <div id="finalize-csv-btn" style="
+      display:block;width:100%;margin:8px 0;padding:18px;
+      border-radius:12px;background:#1565c0;color:#fff;
+      font-size:16px;font-weight:700;text-align:center;cursor:pointer;
+      touch-action:manipulation;user-select:none;
+      box-shadow:0 4px 12px rgba(21,101,192,0.4);">
+      📊 CSVをダウンロード
+    </div>
+
+    <!-- LINEワークス通知メッセージコピー -->
+    <div class="card" style="margin-top:12px;">
+      <div class="card-hd">📨 LINEワークスで通知する</div>
+      <div class="card-bd">
+        <p style="font-size:12px;color:#888;margin-bottom:8px;">下のテキストをコピーしてLINEワークスに貼り付けてください</p>
+        <div id="lineworks-msg" style="
+          background:#f8f9ff;border:1.5px solid #dde5f5;border-radius:8px;
+          padding:12px;font-size:13px;line-height:1.8;white-space:pre-line;
+          color:#333;margin-bottom:10px;"></div>
+        <div id="finalize-copy-btn" style="
+          display:block;width:100%;padding:14px;border-radius:10px;
+          background:#00b900;color:#fff;font-size:15px;font-weight:700;
+          text-align:center;cursor:pointer;touch-action:manipulation;
+          user-select:none;box-shadow:0 4px 12px rgba(0,185,0,0.3);">
+          📋 メッセージをコピー
+        </div>
+        <div id="copy-done-msg" style="display:none;text-align:center;color:#28a745;font-weight:700;margin-top:8px;">✅ コピーしました！</div>
+      </div>
+    </div>
+
+    <!-- 最終確定ボタン -->
+    <div id="finalize-complete-btn" style="
+      display:block;width:100%;margin:12px 0;padding:20px;
+      border-radius:12px;font-size:18px;font-weight:700;
+      text-align:center;cursor:pointer;touch-action:manipulation;
+      user-select:none;-webkit-user-select:none;">
+    </div>
   </div>
 </div>
 
@@ -471,6 +554,9 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
   </button>
   <button onclick="showPage('staff',this)">
     <span class="nav-ico">👥</span>スタッフ
+  </button>
+  <button onclick="showPage('finalize',this)">
+    <span class="nav-ico">🔒</span>確定
   </button>
   <button onclick="showPage('summary',this)">
     <span class="nav-ico">📊</span>集計
@@ -890,22 +976,27 @@ function renderWishShortcuts(){
   const pk=periodKey();
   const wishes=loadWishes();
   const pkW=wishes[pk]||{};
+  const done=loadWishDone();
+  const pkDone=done[pk]||{};
   const el=document.getElementById('wish-shortcut-btns');
   if(!el)return;
   el.innerHTML=data.staff.map(s=>{
     const bc=s.type==='A'?'#d4edda':s.type==='B'?'#cce5ff':s.type==='C'?'#e8d5f5':'#fff3cd';
     const tc=s.type==='A'?'#155724':s.type==='B'?'#004085':s.type==='C'?'#4a148c':'#856404';
     const cnt=Object.keys(pkW[s.id]||{}).length;
+    const isDone=!!pkDone[s.id];
     return `<button onclick="openWishForStaff('${s.id}')" style="
       display:flex;align-items:center;gap:6px;
-      background:${bc};color:${tc};
-      border:2px solid ${tc}33;border-radius:20px;
+      background:${isDone?'#d4edda':bc};color:${isDone?'#155724':tc};
+      border:2px solid ${isDone?'#28a745':tc+'33'};border-radius:20px;
       padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;
       touch-action:manipulation;">
       ${s.name}
-      ${cnt>0
-        ?`<span style="background:var(--red);color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;">${cnt}件</span>`
-        :`<span style="background:#fff;color:#aaa;border-radius:10px;padding:1px 7px;font-size:11px;border:1px solid #ddd;">未入力</span>`
+      ${isDone
+        ?`<span style="background:#28a745;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;">✅入力済</span>`
+        :cnt>0
+          ?`<span style="background:#dc3545;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;">${cnt}件</span>`
+          :`<span style="background:#fff;color:#aaa;border-radius:10px;padding:1px 7px;font-size:11px;border:1px solid #ddd;">未入力</span>`
       }
     </button>`;
   }).join('');
@@ -1112,6 +1203,126 @@ function renderShift(){
       <div class="day-body">${bodyHtml}</div>`;
     container.appendChild(card);
   });
+}
+
+// ====================================================================
+// CSV出力
+// ====================================================================
+function exportCSV(){
+  const pk=periodKey();
+  const dates=getPeriodDates(currentYear,currentMonth);
+  const shifts=data.shifts[pk]||{};
+  const duties=data.duties[pk]||{};
+
+  // ヘッダー行：日付 | スタッフ全員（各スタッフに「状態」「時間」「実働h」の3列）
+  const staffList=data.staff;
+  const headerRow1=['日付','曜日','区分'];
+  const headerRow2=['','',''];
+  staffList.forEach(s=>{
+    headerRow1.push(s.name,'','');
+    headerRow2.push('状態','勤務時間','実働h');
+  });
+
+  const rows=[headerRow1,headerRow2];
+
+  dates.forEach(date=>{
+    const dk=dateKey(date);
+    const dow=date.getDay();
+    const dayType=getDayType(date);
+    const dowStr=DOW_JP[dow];
+    const dutyEntry=duties[dk];
+    let kubun='';
+    if(dayType==='holiday') kubun='休日';
+    else if(dayType==='saturday') kubun='土曜';
+    else kubun='平日';
+
+    const row=[`${date.getMonth()+1}/${date.getDate()}`, dowStr, kubun];
+
+    staffList.forEach(s=>{
+      if(dayType==='holiday'){
+        // 休日：当番者かどうか
+        if(dutyEntry&&dutyEntry.staffId===s.id){
+          const net=calcNet(dutyEntry.start,dutyEntry.end,dutyEntry.rest!==undefined?dutyEntry.rest:60);
+          row.push('当番出勤',`${fmt(dutyEntry.start)}-${fmt(dutyEntry.end)}`,net.toFixed(1)+'h');
+        } else {
+          row.push('休日','','');
+        }
+        return;
+      }
+
+      // 平日・土曜
+      const entry=(shifts[dk]||[]).find(e=>e.staffId===s.id);
+
+      if(isFixed(s)&&!entry){
+        // 固定勤務スタッフのデフォルト出勤
+        const st='08:30';
+        const en=dayType==='saturday'?'16:00':'18:30';
+        const re=s.prefRest!==undefined?s.prefRest:data.defaultRest;
+        const net=calcNet(st,en,re);
+        row.push('出勤',`${st}-${en}`,net.toFixed(1)+'h');
+      } else if(!entry){
+        row.push('未設定','','');
+      } else if(entry.type==='off'){
+        row.push('休み','','');
+      } else if(entry.type==='paid'){
+        const ph=calcPaidHoursFromEntry(entry,s.id,dayType);
+        const pl=entry.paidType==='half'?`半日有給(${entry.paidAmPm==='am'?'午前':'午後'})`:entry.paidType==='custom'?`時間指定有給(${fmt(entry.paidStart)}-${fmt(entry.paidEnd)})`:'全日有給';
+        row.push(pl,'',ph.toFixed(1)+'h');
+      } else {
+        const net=calcNet(entry.start,entry.end,entry.rest!==undefined?entry.rest:data.defaultRest);
+        row.push('出勤',`${fmt(entry.start)}-${fmt(entry.end)}`,net.toFixed(1)+'h');
+      }
+    });
+    rows.push(row);
+  });
+
+  // 月間集計行
+  rows.push([]);
+  const totalRow=['合計実働時間','',''];
+  staffList.forEach(s=>{
+    let total=0;
+    dates.forEach(date=>{
+      const dk=dateKey(date);
+      const dayType=getDayType(date);
+      const entry=(shifts[dk]||[]).find(e=>e.staffId===s.id);
+      const dutyEntry=duties[dk];
+      if(dayType==='holiday'){
+        if(dutyEntry&&dutyEntry.staffId===s.id)
+          total+=calcNet(dutyEntry.start,dutyEntry.end,dutyEntry.rest!==undefined?dutyEntry.rest:60);
+      } else if(isFixed(s)&&!entry){
+        const en=dayType==='saturday'?'16:00':'18:30';
+        total+=calcNet('08:30',en,s.prefRest!==undefined?s.prefRest:data.defaultRest);
+      } else if(entry&&entry.type==='work'){
+        total+=calcNet(entry.start,entry.end,entry.rest!==undefined?entry.rest:data.defaultRest);
+      } else if(entry&&entry.type==='paid'){
+        total+=calcPaidHoursFromEntry(entry,s.id,dayType);
+      }
+    });
+    totalRow.push(total.toFixed(1)+'h','','');
+  });
+  rows.push(totalRow);
+
+  // CSV文字列生成（BOM付きでExcelが文字化けしない）
+  const bom='\uFEFF';
+  const csv=bom+rows.map(row=>
+    row.map(cell=>{
+      const str=String(cell||'');
+      return str.includes(',')||str.includes('"')||str.includes('\n')
+        ?`"${str.replace(/"/g,'""')}"`
+        :str;
+    }).join(',')
+  ).join('\r\n');
+
+  // ダウンロード
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download=`シフト表_${currentYear}年${currentMonth}月.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 function paidLabel(e){
@@ -1507,10 +1718,77 @@ let wishActiveStaff=null;
 function loadWishes(){return JSON.parse(localStorage.getItem('shift_wishes2')||'{}');}
 function saveWishes(w){localStorage.setItem('shift_wishes2',JSON.stringify(w));}
 
+// 締め切りチェック：対象期間(year,month)の入力締め切りは前月15日まで
+// 例：4月21日〜5月20日 のシフト入力締め切り → 3月15日
+function getWishDeadline(year, month){
+  // periodKey は (year, month) → 21日〜翌20日
+  // 締め切りは「前月15日」= (month-1)月15日
+  const deadlineMonth = month - 1;
+  const deadlineYear  = deadlineMonth < 1 ? year - 1 : year;
+  const dm            = deadlineMonth < 1 ? 12 : deadlineMonth;
+  return new Date(deadlineYear, dm - 1, 15, 23, 59, 59);
+}
+function isWishDeadlinePassed(){
+  const deadline = getWishDeadline(currentYear, currentMonth);
+  return new Date() > deadline;
+}
+function getDeadlineLabel(){
+  const deadline = getWishDeadline(currentYear, currentMonth);
+  return `${deadline.getMonth()+1}月${deadline.getDate()}日`;
+}
+function loadWishDone(){return JSON.parse(localStorage.getItem('shift_wish_done')||'{}');}
+function saveWishDone(d){localStorage.setItem('shift_wish_done',JSON.stringify(d));uploadToCloud&&uploadToCloud();}
+
+function toggleWishComplete(pk,staffId){
+  const done=loadWishDone();
+  if(!done[pk])done[pk]={};
+  if(done[pk][staffId]){
+    // 取り消し
+    delete done[pk][staffId];
+  } else {
+    done[pk][staffId]=true;
+  }
+  saveWishDone(done);
+  renderWishInput();
+  renderWishShortcuts();
+}
+
 function renderWishInput(){
   const pk=periodKey();
   const wishes=loadWishes();
   const pkW=wishes[pk]||{};
+  const done=loadWishDone();
+  const pkDone=done[pk]||{};
+
+  // 入力状況サマリー
+  const statusEl=document.getElementById('wish-status-list');
+  if(statusEl){
+    const isPassed=isWishDeadlinePassed();
+    const deadlineLabel=getDeadlineLabel();
+    const allDone=data.staff.length>0&&data.staff.every(s=>!!pkDone[s.id]);
+    statusEl.innerHTML=`
+      <div style="margin-bottom:10px;padding:8px 10px;border-radius:8px;background:${isPassed?'#fde8e8':'#e8f4fd'};color:${isPassed?'#b71c1c':'#1565c0'};font-size:13px;font-weight:700;">
+        ${isPassed
+          ?`🔒 入力締め切り済み（${deadlineLabel}まで）`
+          :`📅 入力締め切り：${deadlineLabel}まで`
+        }
+      </div>
+      ${allDone?'<div style="background:#d4edda;color:#155724;border-radius:8px;padding:8px 10px;font-size:13px;font-weight:700;margin-bottom:8px;">🎉 全員入力済み！シフト作成できます</div>':''}
+      ${data.staff.map(s=>{
+        const isDone=!!pkDone[s.id];
+        const cnt=Object.keys(pkW[s.id]||{}).length;
+        const bc=s.type==='A'?'badge-a':s.type==='B'?'badge-b':s.type==='C'?'badge-c':'badge-part';
+        return `<div style="display:flex;align-items:center;gap:8px;padding:8px 4px;border-bottom:1px solid #f0f0f0;">
+          <span class="badge ${bc}" style="flex-shrink:0;">${typeLabel(s)}</span>
+          <span style="font-weight:700;flex:1;">${s.name}</span>
+          ${cnt>0?`<span style="font-size:11px;color:#666;">${cnt}件</span>`:''}
+          ${isDone
+            ?`<span style="background:#d4edda;color:#155724;border-radius:20px;padding:4px 10px;font-size:12px;font-weight:700;">✅ 入力済み</span>`
+            :`<span style="background:#fff3cd;color:#856404;border-radius:20px;padding:4px 10px;font-size:12px;font-weight:700;">⚠️ 未入力</span>`
+          }
+        </div>`;
+      }).join('')}`;
+  }
 
   // スタッフタブ
   const tabEl=document.getElementById('wish-staff-tabs');
@@ -1528,7 +1806,7 @@ function renderWishInput(){
     </button>`;
   }).join('');
 
-  renderWishArea(pk,pkW);
+  renderWishArea(pk,pkW,pkDone);
 }
 
 function switchWishStaff(id){
@@ -1536,7 +1814,8 @@ function switchWishStaff(id){
   renderWishInput();
 }
 
-function renderWishArea(pk,pkW){
+function renderWishArea(pk,pkW,pkDone){
+  pkDone=pkDone||{};
   const el=document.getElementById('wish-input-area');
   const s=data.staff.find(s=>s.id===wishActiveStaff);
   if(!s){el.innerHTML='';return;}
@@ -1544,6 +1823,42 @@ function renderWishArea(pk,pkW){
   const dates=getPeriodDates(currentYear,currentMonth);
   const workDates=dates.filter(d=>getDayType(d)!=='holiday');
   const staffW=pkW[s.id]||{};
+  const isDone=!!pkDone[s.id];
+
+  // 締め切りチェック
+  const isPassed=isWishDeadlinePassed();
+  const deadlineLabel=getDeadlineLabel();
+
+  // 完了ボタン更新
+  const btnArea=document.getElementById('wish-complete-btn-area');
+  const btn=document.getElementById('wish-complete-btn');
+  if(btnArea&&btn){
+    if(isPassed){
+      // 締め切り後：完了ボタン非表示
+      btnArea.style.display='none';
+    } else {
+      btnArea.style.display='';
+      if(isDone){
+        btn.textContent='✅ 入力済み（タップして修正モードに戻す）';
+        btn.style.background='#d4edda';
+        btn.style.color='#155724';
+        btn.style.border='2px solid #28a745';
+        btn.style.boxShadow='none';
+      } else {
+        btn.textContent='✅ 入力完了！（タップして完了にする）';
+        btn.style.background='#28a745';
+        btn.style.color='#fff';
+        btn.style.border='none';
+        btn.style.boxShadow='0 4px 12px rgba(40,167,69,0.4)';
+      }
+      // イベント再設定
+      const newBtn=btn.cloneNode(true);
+      btn.parentNode.replaceChild(newBtn,btn);
+      const handler=()=>toggleWishComplete(pk,s.id);
+      newBtn.addEventListener('touchend',e=>{e.preventDefault();handler();});
+      newBtn.addEventListener('click',handler);
+    }
+  }
 
   const bc=s.type==='A'?'badge-a':s.type==='B'?'badge-b':s.type==='C'?'badge-c':'badge-part';
 
@@ -1555,7 +1870,9 @@ function renderWishArea(pk,pkW){
         希望: ${Object.keys(staffW).length}日
       </span>
     </div>
-    <p style="font-size:11px;color:#888;margin-bottom:8px;">日付をタップして希望の種類を選んでください</p>
+    <p style="font-size:11px;color:${isPassed?'#b71c1c':'#888'};margin-bottom:8px;">
+      ${isPassed?`🔒 締め切り済み（${deadlineLabel}まで）- 閲覧のみ`:'日付をタップして希望の種類を選んでください'}
+    </p>
     <div style="display:flex;flex-wrap:wrap;gap:6px;">
       ${workDates.map(d=>{
         const dk=dateKey(d);
@@ -1573,10 +1890,20 @@ function renderWishArea(pk,pkW){
             label+=`<br><span style="font-size:9px;">🕐${fmt(w.workStart)}–${fmt(w.workEnd)}</span>`;
           }
         }
+        if(isPassed){
+          // 締め切り後：タップ不可・薄く表示
+          return `<div style="
+            background:${w?bg:'#f0f0f0'};border:1.5px solid ${w?border:'#ddd'};border-radius:8px;
+            padding:6px 8px;font-size:12px;color:#999;
+            opacity:0.7;min-width:58px;text-align:center;line-height:1.4;">
+            ${label}
+          </div>`;
+        }
         return `<button onclick="openWishDayModal('${pk}','${s.id}','${dk}')" style="
           background:${bg};border:1.5px solid ${border};border-radius:8px;
           padding:6px 8px;font-size:12px;color:${color};cursor:pointer;
-          font-weight:${w?'700':'400'};min-width:58px;text-align:center;line-height:1.4;">
+          font-weight:${w?'700':'400'};min-width:58px;text-align:center;line-height:1.4;
+          touch-action:manipulation;">
           ${label}
         </button>`;
       }).join('')}
@@ -1949,6 +2276,152 @@ function getShiftFor(pk,date,staffId){
 }
 
 // ====================================================================
+// シフト最終確認
+// ====================================================================
+let finalizeSelectedStaff=null;
+
+function loadFinalDone(){return JSON.parse(localStorage.getItem('shift_final_done')||'{}');}
+function saveFinalDone(d){
+  localStorage.setItem('shift_final_done',JSON.stringify(d));
+  if(typeof uploadToCloud==='function')uploadToCloud();
+}
+
+function renderFinalize(){
+  const pk=periodKey();
+  const finalDone=loadFinalDone();
+  const pkFinal=finalDone[pk]||null;
+  const wishes=loadWishes();
+  const wishDone=loadWishDone();
+  const pkWishDone=wishDone[pk]||{};
+  const allWishDone=data.staff.length>0&&data.staff.every(s=>!!pkWishDone[s.id]);
+
+  // 確定状況
+  const statusBody=document.getElementById('finalize-status-body');
+  if(pkFinal){
+    statusBody.innerHTML=`
+      <div style="text-align:center;padding:16px 0;">
+        <div style="font-size:40px;margin-bottom:8px;">✅</div>
+        <div style="font-size:16px;font-weight:700;color:#155724;">シフト確定済み</div>
+        <div style="font-size:12px;color:#888;margin-top:4px;">${pkFinal.by} が確定（${pkFinal.at}）</div>
+      </div>`;
+  } else {
+    statusBody.innerHTML=`
+      <div style="padding:8px 0;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <span style="font-size:20px;">${allWishDone?'✅':'⚠️'}</span>
+          <span style="font-size:14px;font-weight:700;color:${allWishDone?'#155724':'#856404'};">
+            ${allWishDone?'全員の希望入力が完了しています':'まだ希望未入力のスタッフがいます'}
+          </span>
+        </div>
+        <div style="font-size:12px;color:#888;">確定前に全員の希望入力が完了しているか確認してください</div>
+      </div>`;
+  }
+
+  // 常勤スタッフ選択ボタン
+  const fixedStaff=data.staff.filter(s=>s.type!=='part');
+  const authCard=document.getElementById('finalize-auth-card');
+  const btnEl=document.getElementById('finalize-staff-btns');
+  if(!fixedStaff.length){
+    authCard.style.display='none';
+  } else {
+    authCard.style.display='';
+    btnEl.innerHTML=fixedStaff.map(s=>{
+      const isSelected=finalizeSelectedStaff===s.id;
+      const bc=s.type==='A'?'#d4edda':s.type==='B'?'#cce5ff':'#e8d5f5';
+      const tc=s.type==='A'?'#155724':s.type==='B'?'#004085':'#4a148c';
+      return `<button onclick="selectFinalizeStaff('${s.id}')" style="
+        padding:10px 16px;border-radius:20px;font-size:14px;font-weight:700;cursor:pointer;
+        background:${isSelected?tc:bc};color:${isSelected?'#fff':tc};
+        border:2px solid ${tc};touch-action:manipulation;">
+        ${s.name}
+      </button>`;
+    }).join('');
+  }
+
+  // 確定アクションエリア
+  const actionArea=document.getElementById('finalize-action-area');
+  if(!finalizeSelectedStaff){
+    actionArea.style.display='none';
+    return;
+  }
+  actionArea.style.display='';
+
+  // LINEワークスメッセージ生成
+  const lbl=getPeriodLabel(currentYear,currentMonth);
+  const appUrl='https://muhiki0610-byte.github.io/shift-app/';
+  const msg=`✅ ${lbl}のシフトが確定しました！\n\n📅 シフト確認はこちら👇\n${appUrl}\n\nご確認よろしくお願いします🙏`;
+  document.getElementById('lineworks-msg').textContent=msg;
+
+  // コピーボタン
+  const copyBtn=document.getElementById('finalize-copy-btn');
+  const newCopyBtn=copyBtn.cloneNode(true);
+  copyBtn.parentNode.replaceChild(newCopyBtn,copyBtn);
+  const copyHandler=()=>{
+    navigator.clipboard?navigator.clipboard.writeText(msg).then(()=>{
+      document.getElementById('copy-done-msg').style.display='block';
+      setTimeout(()=>document.getElementById('copy-done-msg').style.display='none',2000);
+    }):fallbackCopy(msg);
+  };
+  newCopyBtn.addEventListener('touchend',e=>{e.preventDefault();copyHandler();});
+  newCopyBtn.addEventListener('click',copyHandler);
+
+  // CSVボタン
+  const csvBtn=document.getElementById('finalize-csv-btn');
+  const newCsvBtn=csvBtn.cloneNode(true);
+  csvBtn.parentNode.replaceChild(newCsvBtn,csvBtn);
+  const csvHandler=()=>exportCSV();
+  newCsvBtn.addEventListener('touchend',e=>{e.preventDefault();csvHandler();});
+  newCsvBtn.addEventListener('click',csvHandler);
+
+  // 最終確定ボタン
+  const completeBtn=document.getElementById('finalize-complete-btn');
+  const newCompleteBtn=completeBtn.cloneNode(true);
+  completeBtn.parentNode.replaceChild(newCompleteBtn,completeBtn);
+  if(pkFinal){
+    newCompleteBtn.textContent='🔓 確定を取り消す';
+    newCompleteBtn.style.cssText='display:block;width:100%;margin:12px 0;padding:20px;border-radius:12px;font-size:16px;font-weight:700;text-align:center;cursor:pointer;touch-action:manipulation;user-select:none;background:#f8d7da;color:#721c24;border:2px solid #f5c6cb;';
+    const cancelHandler=()=>{
+      showConfirm('確定を取り消しますか？',()=>{
+        const fd=loadFinalDone();delete fd[pk];saveFinalDone(fd);renderFinalize();
+      });
+    };
+    newCompleteBtn.addEventListener('touchend',e=>{e.preventDefault();cancelHandler();});
+    newCompleteBtn.addEventListener('click',cancelHandler);
+  } else {
+    newCompleteBtn.textContent='🔒 シフトを最終確定する';
+    newCompleteBtn.style.cssText='display:block;width:100%;margin:12px 0;padding:20px;border-radius:12px;font-size:18px;font-weight:700;text-align:center;cursor:pointer;touch-action:manipulation;user-select:none;background:#dc3545;color:#fff;box-shadow:0 4px 12px rgba(220,53,69,0.4);';
+    const finalHandler=()=>{
+      const s=data.staff.find(s=>s.id===finalizeSelectedStaff);
+      showConfirm(`${s?s.name:''}さんとして\nシフトを最終確定します。\nよろしいですか？`,()=>{
+        const fd=loadFinalDone();
+        const now=new Date();
+        const at=`${now.getMonth()+1}/${now.getDate()} ${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`;
+        fd[pk]={by:s?s.name:'',at};
+        saveFinalDone(fd);
+        renderFinalize();
+        showConfirm('✅ 確定しました！\nCSVをダウンロードしてLINEワークスで通知してください。',()=>{});
+      });
+    };
+    newCompleteBtn.addEventListener('touchend',e=>{e.preventDefault();finalHandler();});
+    newCompleteBtn.addEventListener('click',finalHandler);
+  }
+}
+
+function selectFinalizeStaff(id){
+  finalizeSelectedStaff=id;
+  renderFinalize();
+}
+
+function fallbackCopy(text){
+  const ta=document.createElement('textarea');
+  ta.value=text;ta.style.position='fixed';ta.style.opacity='0';
+  document.body.appendChild(ta);ta.select();
+  document.execCommand('copy');document.body.removeChild(ta);
+  document.getElementById('copy-done-msg').style.display='block';
+  setTimeout(()=>document.getElementById('copy-done-msg').style.display='none',2000);
+}
+
+// ====================================================================
 // UI制御
 // ====================================================================
 function toggleSection(hd){
@@ -1979,6 +2452,7 @@ function renderPage(id){
   if(id==='auto'){document.getElementById('auto-month-label').textContent=lbl;renderWishInput();document.getElementById('auto-result-card').style.display='none';}
   if(id==='duty-set'){document.getElementById('dutyset-month-label').textContent=lbl;renderDutySet();}
   if(id==='staff')renderStaff();
+  if(id==='finalize'){document.getElementById('finalize-month-label').textContent=lbl;renderFinalize();}
   if(id==='summary'){document.getElementById('summary-month-label').textContent=lbl;renderSummary();}
 }
 
@@ -2076,6 +2550,9 @@ async function setupFirebase() {
       data.duties   = cloudData.duties   || {};
       data.holidays = cloudData.holidays || {};
       data.defaultRest = cloudData.defaultRest || 60;
+      if(cloudData.wishDone)  localStorage.setItem('shift_wish_done',  JSON.stringify(cloudData.wishDone));
+      if(cloudData.wishes)    localStorage.setItem('shift_wishes2',    JSON.stringify(cloudData.wishes));
+      if(cloudData.finalDone) localStorage.setItem('shift_final_done', JSON.stringify(cloudData.finalDone));
       saveData(); // localStorageにも保存
       renderPage(activePage);
       showSyncStatus('✅ 同期済み', '#28a745');
@@ -2095,6 +2572,9 @@ function uploadToCloud() {
     duties: data.duties,
     holidays: data.holidays,
     defaultRest: data.defaultRest,
+    wishDone: loadWishDone(),
+    wishes: loadWishes(),
+    finalDone: loadFinalDone(),
     updatedAt: Date.now()
   }).then(() => {
     showSyncStatus('✅ 保存済み', '#28a745');
