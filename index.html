@@ -1,0 +1,1396 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>薬局シフト管理</title>
+<style>
+:root {
+  --blue:#2c7be5; --blue-lt:#e8f0fd; --blue-dk:#1a5cba;
+  --green:#28a745; --green-lt:#d4edda; --green-dk:#155724;
+  --red:#dc3545; --red-lt:#f8d7da; --red-dk:#721c24;
+  --yellow:#ffc107; --yellow-lt:#fff3cd; --yellow-dk:#856404;
+  --purple:#6f42c1; --purple-lt:#e8d5f5;
+  --gray:#6c757d; --gray-lt:#f0f0f0; --gray-bg:#f5f7fa;
+  --white:#fff; --border:#e0e0e0;
+  --r:10px; --r-sm:6px;
+  --shadow:0 2px 8px rgba(0,0,0,0.10);
+  --nav-h:56px; --header-h:52px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;overflow-x:hidden;}
+body{font-family:-apple-system,'Helvetica Neue',Arial,sans-serif;background:var(--gray-bg);color:#222;font-size:15px;padding-bottom:calc(var(--nav-h)+env(safe-area-inset-bottom));}
+
+/* ── ヘッダー ── */
+header{
+  background:linear-gradient(135deg,var(--blue) 0%,var(--blue-dk) 100%);
+  color:#fff;padding:10px 16px;
+  position:sticky;top:0;z-index:100;
+  box-shadow:0 2px 6px rgba(0,0,0,0.25);
+  display:flex;align-items:center;gap:10px;min-height:var(--header-h);
+}
+header .hico{font-size:22px;line-height:1;}
+header .htxt h1{font-size:17px;font-weight:700;line-height:1.2;}
+header .htxt p{font-size:11px;opacity:.85;margin-top:1px;}
+
+/* ── ボトムナビ ── */
+nav{
+  position:fixed;bottom:0;left:0;right:0;z-index:200;
+  background:#fff;border-top:1px solid var(--border);
+  display:flex;
+  padding-bottom:env(safe-area-inset-bottom);
+  box-shadow:0 -2px 10px rgba(0,0,0,0.08);
+}
+nav button{
+  flex:1;border:none;background:transparent;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:8px 2px 6px;gap:2px;cursor:pointer;
+  font-size:10px;color:#999;font-weight:600;
+  transition:color .15s;min-height:var(--nav-h);
+}
+nav button .nav-ico{font-size:22px;line-height:1;}
+nav button.active{color:var(--blue);}
+nav button.active .nav-ico{transform:scale(1.1);}
+
+/* ── ページ ── */
+.page{display:none;padding:12px 12px 0;}
+.page.active{display:block;}
+
+/* ── 月セレクター ── */
+.month-bar{
+  display:flex;align-items:center;gap:8px;
+  background:#fff;border-radius:var(--r);
+  padding:10px 14px;margin-bottom:12px;
+  box-shadow:var(--shadow);
+}
+.month-bar .mbtn{
+  background:var(--blue);color:#fff;border:none;
+  border-radius:50%;width:38px;height:38px;font-size:20px;
+  cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 2px 4px rgba(44,123,229,.4);
+}
+.month-bar span{flex:1;text-align:center;font-size:13px;font-weight:700;color:#333;line-height:1.3;}
+
+/* ── カード ── */
+.card{background:#fff;border-radius:var(--r);box-shadow:var(--shadow);margin-bottom:12px;overflow:hidden;}
+.card-hd{padding:11px 14px;font-weight:700;font-size:13px;color:var(--blue);
+  background:var(--blue-lt);border-bottom:1px solid #d0dcf8;
+  display:flex;align-items:center;gap:6px;}
+.card-bd{padding:12px 14px;}
+
+/* ── ボタン ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;
+  padding:12px 18px;border-radius:var(--r-sm);border:none;cursor:pointer;
+  font-size:14px;font-weight:700;touch-action:manipulation;transition:opacity .15s;}
+.btn:active{opacity:.75;}
+.btn-primary{background:var(--blue);color:#fff;}
+.btn-danger{background:var(--red);color:#fff;}
+.btn-warning{background:var(--yellow);color:#333;}
+.btn-success{background:var(--green);color:#fff;}
+.btn-outline{background:transparent;border:2px solid var(--blue);color:var(--blue);}
+.btn-sm{padding:8px 12px;font-size:12px;}
+.btn-block{display:flex;width:100%;margin-bottom:8px;}
+
+/* ── フォーム ── */
+label{display:block;font-size:12px;color:var(--gray);margin-bottom:4px;margin-top:12px;font-weight:600;}
+input,select{
+  width:100%;padding:12px;border:1.5px solid var(--border);
+  border-radius:var(--r-sm);font-size:16px;background:#fff;
+  appearance:none;-webkit-appearance:none;
+}
+input:focus,select:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(44,123,229,.15);}
+select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23666' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:36px;}
+
+/* ── バッジ ── */
+.badge{display:inline-block;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap;}
+.badge-a{background:var(--green-lt);color:var(--green-dk);}
+.badge-b{background:#cce5ff;color:#004085;}
+.badge-part{background:var(--yellow-lt);color:var(--yellow-dk);}
+.badge-busy{background:#ff6b2b;color:#fff;}
+.badge-sat{background:#e67e00;color:#fff;}
+
+/* ── アラート ── */
+.alert{padding:10px 13px;border-radius:var(--r-sm);margin-bottom:10px;font-size:13px;line-height:1.5;}
+.alert-info{background:#d1ecf1;color:#0c5460;}
+.alert-warn{background:var(--yellow-lt);color:var(--yellow-dk);}
+.alert-ok{background:var(--green-lt);color:var(--green-dk);}
+.alert-ng{background:var(--red-lt);color:var(--red-dk);}
+
+/* ── 日カード（シフト表） ── */
+.day-card{border-radius:var(--r);margin-bottom:8px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.08);}
+.day-card-head{
+  display:flex;align-items:center;gap:8px;
+  padding:9px 12px;cursor:pointer;user-select:none;
+}
+.day-date{font-size:16px;font-weight:800;min-width:54px;}
+.day-dow{font-size:13px;font-weight:700;min-width:20px;}
+.day-badges{display:flex;gap:4px;flex-wrap:wrap;flex:1;}
+.day-toggle{color:#bbb;font-size:18px;margin-left:auto;transition:transform .2s;}
+.day-card.open .day-toggle{transform:rotate(180deg);}
+.day-body{display:none;padding:8px 10px 10px;border-top:1px solid rgba(0,0,0,.06);}
+.day-card.open .day-body{display:block;}
+
+/* 日付カラー */
+.dc-weekday{background:#fff;}
+.dc-saturday{background:#fffde7;}
+.dc-sat-key{background:#fff3cd;}
+.dc-holiday{background:#fff0f0;}
+.dc-busy-full{background:#fff0e6;}
+.dc-busy-pm{background:#fff8f0;}
+
+/* ── シフトエントリ ── */
+.se{
+  display:flex;align-items:center;gap:6px;
+  padding:8px 10px;border-radius:var(--r-sm);
+  margin-bottom:5px;font-size:13px;
+}
+.se-a{background:var(--green-lt);}
+.se-b{background:#e3f0ff;}
+.se-part{background:var(--yellow-lt);}
+.se-duty{background:#fde8e8;border:1px solid #f5c6cb;}
+.se-paid{background:var(--purple-lt);border:1px solid #ce93d8;}
+.se-off{background:var(--gray-lt);color:#888;font-style:italic;}
+.se-name{font-weight:700;font-size:13px;}
+.se-time{font-size:12px;color:#555;}
+.se-hrs{font-size:11px;color:#888;margin-left:auto;flex-shrink:0;}
+.se-del{
+  background:none;border:none;color:#ccc;cursor:pointer;
+  font-size:18px;padding:2px 4px;margin-left:2px;flex-shrink:0;
+  touch-action:manipulation;
+}
+.se-del:active{color:var(--red);}
+
+.add-day-btn{
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  width:100%;padding:10px;margin-top:4px;
+  background:var(--blue-lt);border:1.5px dashed var(--blue);
+  color:var(--blue);border-radius:var(--r-sm);
+  font-size:13px;font-weight:700;cursor:pointer;
+  touch-action:manipulation;
+}
+
+/* sat warn/ok 小 */
+.mini-warn{padding:4px 8px;border-radius:4px;font-size:11px;margin-top:4px;}
+
+/* ── 土曜バランスバー ── */
+.sat-row{display:flex;align-items:center;gap:8px;margin-bottom:7px;}
+.sat-name{width:48px;font-size:13px;font-weight:700;flex-shrink:0;}
+.sat-bar-wrap{flex:1;background:#e9ecef;border-radius:6px;height:22px;overflow:hidden;position:relative;}
+.sat-bar-fill{height:100%;border-radius:6px;transition:width .3s;display:flex;align-items:center;justify-content:flex-end;padding-right:6px;font-size:11px;color:#fff;font-weight:700;}
+.sat-ideal{position:absolute;top:0;bottom:0;width:2px;background:#333;opacity:.35;}
+.sat-cnt{font-size:12px;color:#555;width:32px;text-align:right;flex-shrink:0;}
+
+/* ── 週休ステータス ── */
+.wos-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;}
+.wos-item{background:#fff;border:1.5px solid var(--border);border-radius:var(--r-sm);padding:8px 10px;}
+.wos-name{font-weight:700;font-size:13px;}
+.wos-badge{display:inline-block;border-radius:20px;padding:2px 9px;font-size:11px;font-weight:700;margin-top:3px;}
+.wos-ok{background:var(--green-lt);color:var(--green-dk);}
+.wos-warn{background:var(--yellow-lt);color:var(--yellow-dk);}
+.wos-ng{background:var(--red-lt);color:var(--red-dk);}
+
+/* ── スタッフ ── */
+.staff-item{display:flex;align-items:center;padding:12px 14px;border-bottom:1px solid var(--gray-lt);gap:10px;}
+.staff-item:last-child{border-bottom:none;}
+.staff-name{flex:1;font-weight:700;font-size:15px;}
+.staff-btns{display:flex;gap:6px;}
+
+/* ── 当番設定 ── */
+.duty-row{display:flex;align-items:center;padding:12px 14px;border-bottom:1px solid var(--gray-lt);gap:10px;}
+.duty-row:last-child{border-bottom:none;}
+.duty-date{font-weight:700;font-size:14px;min-width:80px;}
+.duty-info{flex:1;font-size:13px;}
+.duty-btn{flex-shrink:0;}
+
+/* ── 集計テーブル ── */
+.sum-table{width:100%;border-collapse:collapse;}
+.sum-table th{background:var(--blue-lt);padding:8px 4px;font-size:11px;text-align:center;border-bottom:2px solid #d0dcf8;font-weight:700;}
+.sum-table td{padding:8px 4px;border-bottom:1px solid var(--gray-lt);font-size:12px;text-align:center;}
+.sum-table td:first-child{text-align:left;padding-left:10px;font-weight:700;}
+.over{color:var(--red);font-weight:700;}
+.ok{color:var(--green);}
+
+/* ── モーダル ── */
+.modal-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:300;align-items:flex-end;justify-content:center;}
+.modal-ov.open{display:flex;}
+.modal{
+  background:#fff;border-radius:20px 20px 0 0;
+  padding:20px 18px;width:100%;max-width:520px;
+  max-height:92vh;overflow-y:auto;
+  padding-bottom:calc(20px + env(safe-area-inset-bottom));
+}
+.modal-grip{width:40px;height:4px;background:#ddd;border-radius:2px;margin:0 auto 16px;}
+.modal h2{font-size:17px;font-weight:800;margin-bottom:14px;}
+.modal-foot{display:flex;gap:8px;margin-top:16px;}
+.modal-foot button{flex:1;}
+
+/* ── 凡例 ── */
+.legend{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px;}
+.legend-item{display:flex;align-items:center;gap:4px;font-size:11px;}
+.legend-box{width:14px;height:14px;border-radius:3px;flex-shrink:0;}
+
+/* ── セクション折りたたみ ── */
+.collapsible-hd{
+  display:flex;align-items:center;justify-content:space-between;
+  cursor:pointer;padding:11px 14px;
+  background:var(--blue-lt);border-bottom:1px solid #d0dcf8;
+  font-weight:700;font-size:13px;color:var(--blue);
+}
+.collapsible-hd .chev{transition:transform .2s;font-size:16px;}
+.collapsible-hd.open .chev{transform:rotate(180deg);}
+.collapsible-bd{display:none;padding:12px 14px;}
+.collapsible-bd.open{display:block;}
+
+/* ── 希望時間 ── */
+.pref-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.pref-grid .pref-full{grid-column:1/-1;}
+
+@media print{
+  nav,header,.btn,.add-day-btn,.se-del,.month-bar,.legend,.wos-grid,.sat-row{display:none!important;}
+  .page{display:block!important;}
+  .page:not(#page-shift){display:none!important;}
+  .day-body{display:block!important;}
+  body{padding:0;font-size:10px;}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hico">💊</div>
+  <div class="htxt">
+    <h1>薬局シフト管理</h1>
+    <p id="header-period">--</p>
+  </div>
+</header>
+
+<!-- ===== ページ: シフト ===== -->
+<div id="page-shift" class="page active">
+  <div class="month-bar">
+    <button class="mbtn" onclick="changeMonth(-1)">‹</button>
+    <span id="shift-month-label">--</span>
+    <button class="mbtn" onclick="changeMonth(1)">›</button>
+  </div>
+
+  <!-- 凡例（折りたたみ） -->
+  <div class="card" style="margin-bottom:10px;">
+    <div class="collapsible-hd" onclick="toggleSection(this)">
+      🎨 凡例・カラー説明 <span class="chev">▾</span>
+    </div>
+    <div class="collapsible-bd">
+      <div class="legend">
+        <div class="legend-item"><div class="legend-box" style="background:#d4edda;"></div>常勤A</div>
+        <div class="legend-item"><div class="legend-box" style="background:#e3f0ff;"></div>常勤B</div>
+        <div class="legend-item"><div class="legend-box" style="background:#fff3cd;"></div>非常勤</div>
+        <div class="legend-item"><div class="legend-box" style="background:#e8d5f5;border:1px solid #ce93d8;"></div>有給</div>
+        <div class="legend-item"><div class="legend-box" style="background:#f0f0f0;"></div>週休</div>
+        <div class="legend-item"><div class="legend-box" style="background:#fff3cd;border:1px solid #ffc107;"></div>重要土曜</div>
+        <div class="legend-item"><div class="legend-box" style="background:#fff0e6;"></div>繁忙(全日)</div>
+        <div class="legend-item"><div class="legend-box" style="background:#fff8f0;"></div>繁忙(PM)</div>
+        <div class="legend-item"><div class="legend-box" style="background:#fff0f0;"></div>休日・祝日</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 週休状況（折りたたみ） -->
+  <div class="card">
+    <div class="collapsible-hd open" onclick="toggleSection(this)">
+      📊 週休2日 取得状況 <span class="chev">▾</span>
+    </div>
+    <div class="collapsible-bd open" id="weekly-off-panel"></div>
+  </div>
+
+  <!-- 土曜バランス（折りたたみ） -->
+  <div class="card">
+    <div class="collapsible-hd open" onclick="toggleSection(this)">
+      🗓 土曜出勤バランス（常勤A） <span class="chev">▾</span>
+    </div>
+    <div class="collapsible-bd open" id="sat-balance"></div>
+  </div>
+
+  <!-- シフトカード一覧 -->
+  <div id="shift-day-list"></div>
+
+  <button class="btn btn-outline btn-block" style="margin-bottom:16px;" onclick="window.print()">🖨️ 印刷</button>
+</div>
+
+<!-- ===== ページ: 当番 ===== -->
+<div id="page-duty-set" class="page">
+  <div class="month-bar">
+    <button class="mbtn" onclick="changeMonth(-1)">‹</button>
+    <span id="dutyset-month-label">--</span>
+    <button class="mbtn" onclick="changeMonth(1)">›</button>
+  </div>
+  <div class="alert alert-info">休日当番は <strong>常勤A</strong> から設定。デフォルト：9:00〜18:00。月1回以上必須。</div>
+
+  <div class="card">
+    <div class="card-hd">🏥 法定祝日（自動）</div>
+    <div class="card-bd">
+      <p id="holiday-auto-list" style="font-size:12px;color:#555;line-height:2.2;"></p>
+      <label>追加休日（日付カンマ区切り 例: 2,10）</label>
+      <input type="text" id="holiday-input" placeholder="例: 2,10" inputmode="numeric" />
+      <button class="btn btn-primary btn-block" style="margin-top:10px;" onclick="saveHolidays()">💾 追加休日を保存</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd">🔴 休日当番 担当設定</div>
+    <div id="duty-preset-list" style="padding:0;"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd">✅ 当番充足状況</div>
+    <div class="card-bd" id="duty-check-list"></div>
+  </div>
+</div>
+
+<!-- ===== ページ: スタッフ ===== -->
+<div id="page-staff" class="page">
+  <div class="card">
+    <div class="card-hd">👥 スタッフ一覧</div>
+    <div id="staff-list" style="padding:0;"></div>
+  </div>
+  <button class="btn btn-primary btn-block" onclick="openAddStaffModal()">＋ スタッフを追加</button>
+
+  <div class="card" style="margin-top:10px;">
+    <div class="collapsible-hd open" onclick="toggleSection(this)">⏰ 希望勤務時間（全員） <span class="chev">▾</span></div>
+    <div class="collapsible-bd open">
+      <p style="font-size:12px;color:#888;margin-bottom:10px;">シフト追加時のデフォルト時間に使われます。</p>
+      <div id="pref-time-list"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd">⏸ デフォルト休憩時間</div>
+    <div class="card-bd">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <input type="number" id="default-rest" min="0" max="120" step="15" style="width:100px;" value="60" inputmode="numeric" />
+        <span style="font-size:14px;flex-shrink:0;">分</span>
+        <button class="btn btn-primary btn-sm" onclick="saveDefaultRest()">保存</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== ページ: 集計 ===== -->
+<div id="page-summary" class="page">
+  <div class="month-bar">
+    <button class="mbtn" onclick="changeMonth(-1)">‹</button>
+    <span id="summary-month-label">--</span>
+    <button class="mbtn" onclick="changeMonth(1)">›</button>
+  </div>
+
+  <div class="card">
+    <div class="card-hd">🗓 土曜出勤バランス（常勤A）</div>
+    <div class="card-bd"><div id="sat-balance-summary"></div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd">📊 月間実働時間（有給含む・休憩除く）</div>
+    <div style="overflow-x:auto;">
+      <table class="sum-table">
+        <thead><tr>
+          <th style="text-align:left;padding-left:10px;">氏名</th>
+          <th>区分</th><th>実働h</th><th>有給</th><th>週休</th><th>土曜</th><th>上限</th><th>状態</th>
+        </tr></thead>
+        <tbody id="summary-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ===== ボトムナビ ===== -->
+<nav>
+  <button class="active" onclick="showPage('shift',this)">
+    <span class="nav-ico">📅</span>シフト
+  </button>
+  <button onclick="showPage('duty-set',this)">
+    <span class="nav-ico">🗓</span>当番
+  </button>
+  <button onclick="showPage('staff',this)">
+    <span class="nav-ico">👥</span>スタッフ
+  </button>
+  <button onclick="showPage('summary',this)">
+    <span class="nav-ico">📊</span>集計
+  </button>
+</nav>
+
+<!-- ===== モーダル: シフト追加 ===== -->
+<div class="modal-ov" id="shift-modal">
+  <div class="modal">
+    <div class="modal-grip"></div>
+    <h2 id="shift-modal-title">シフト登録</h2>
+    <div id="shift-modal-busy-note" style="display:none;" class="alert alert-warn"></div>
+
+    <label>担当者</label>
+    <select id="modal-staff" onchange="onStaffChange()"></select>
+    <p id="modal-pref-hint" style="font-size:12px;color:var(--blue);margin-top:6px;font-weight:600;min-height:18px;"></p>
+
+    <label>種別</label>
+    <select id="modal-entry-type" onchange="onEntryTypeChange()">
+      <option value="work">出勤</option>
+      <option value="off">週休（休み）</option>
+      <option value="paid">有給休暇</option>
+    </select>
+
+    <!-- 出勤時間 -->
+    <div id="modal-time-section">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div><label>開始</label><input type="time" id="modal-start" value="08:30" oninput="updateActualHours()"/></div>
+        <div><label>終了</label><input type="time" id="modal-end"   value="18:30" oninput="updateActualHours()"/></div>
+      </div>
+      <label>休憩（分）</label>
+      <input type="number" id="modal-rest" min="0" max="120" step="15" value="60" inputmode="numeric" oninput="updateActualHours()"/>
+      <p id="modal-actual-hours" style="font-size:13px;color:var(--blue);margin-top:8px;font-weight:700;min-height:20px;"></p>
+    </div>
+
+    <!-- 有給設定 -->
+    <div id="modal-paid-section" style="display:none;">
+      <div class="alert alert-info" style="margin-top:10px;">🟣 有給は実働時間として月170時間に含まれます。</div>
+      <label>有給の種類</label>
+      <select id="modal-paid-type" onchange="onPaidTypeChange()">
+        <option value="full">全日有給（希望勤務時間で計算）</option>
+        <option value="half">半日有給（4時間固定）</option>
+        <option value="custom">時間指定有給（手動入力）</option>
+      </select>
+      <div id="modal-paid-half-section" style="display:none;margin-top:8px;">
+        <label>半日の区分</label>
+        <select id="modal-paid-half-ampm">
+          <option value="am">午前（前半4時間）</option>
+          <option value="pm">午後（後半4時間）</option>
+        </select>
+      </div>
+      <div id="modal-paid-custom-section" style="display:none;margin-top:8px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div><label>開始</label><input type="time" id="modal-paid-start" value="08:30" oninput="updatePaidPreview()"/></div>
+          <div><label>終了</label><input type="time" id="modal-paid-end"   value="12:30" oninput="updatePaidPreview()"/></div>
+        </div>
+      </div>
+      <p id="modal-paid-hours" style="font-size:13px;color:var(--purple);font-weight:700;margin-top:10px;min-height:20px;"></p>
+    </div>
+
+    <div class="modal-foot">
+      <button class="btn btn-outline" onclick="closeModal('shift-modal')">キャンセル</button>
+      <button class="btn btn-primary" onclick="saveShiftEntry()">✅ 登録</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== モーダル: スタッフ ===== -->
+<div class="modal-ov" id="staff-modal">
+  <div class="modal">
+    <div class="modal-grip"></div>
+    <h2 id="staff-modal-title">スタッフ</h2>
+    <label>名前</label>
+    <input type="text" id="staff-name-input" placeholder="名前" />
+    <label>区分</label>
+    <select id="staff-type-input">
+      <option value="A">常勤A（休日当番あり）</option>
+      <option value="B">常勤B（固定勤務・休日当番なし）</option>
+      <option value="part">非常勤</option>
+    </select>
+    <div class="modal-foot">
+      <button class="btn btn-outline" onclick="closeModal('staff-modal')">キャンセル</button>
+      <button class="btn btn-primary" onclick="saveStaff()">💾 保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== モーダル: 当番設定 ===== -->
+<div class="modal-ov" id="duty-modal">
+  <div class="modal">
+    <div class="modal-grip"></div>
+    <h2 id="duty-modal-title">休日当番設定</h2>
+    <div class="alert alert-info">デフォルト：9:00〜18:00（変更可）</div>
+    <label>担当者（常勤Aから選択）</label>
+    <select id="duty-modal-staff"><option value="">-- 未設定 --</option></select>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <div><label>開始</label><input type="time" id="duty-modal-start" value="09:00" oninput="updateDutyNet()"/></div>
+      <div><label>終了</label><input type="time" id="duty-modal-end"   value="18:00" oninput="updateDutyNet()"/></div>
+    </div>
+    <label>休憩（分）</label>
+    <input type="number" id="duty-modal-rest" min="0" max="120" step="15" value="60" inputmode="numeric" oninput="updateDutyNet()"/>
+    <p id="duty-modal-net" style="font-size:13px;color:var(--blue);margin-top:8px;font-weight:700;min-height:20px;"></p>
+    <div class="modal-foot">
+      <button class="btn btn-outline" onclick="closeModal('duty-modal')">キャンセル</button>
+      <button class="btn btn-danger btn-sm" onclick="clearDutyEntry()">クリア</button>
+      <button class="btn btn-primary" onclick="saveDutyEntry()">💾 保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ====================================================================
+// 祝日データ（2024〜2027）
+// ====================================================================
+const JAPAN_HOLIDAYS={
+  '2024-01-01':1,'2024-01-08':1,'2024-02-11':1,'2024-02-12':1,'2024-02-23':1,
+  '2024-03-20':1,'2024-04-29':1,'2024-05-03':1,'2024-05-04':1,'2024-05-05':1,
+  '2024-05-06':1,'2024-07-15':1,'2024-08-11':1,'2024-08-12':1,'2024-09-16':1,
+  '2024-09-22':1,'2024-09-23':1,'2024-10-14':1,'2024-11-03':1,'2024-11-04':1,'2024-11-23':1,
+  '2025-01-01':1,'2025-01-13':1,'2025-02-11':1,'2025-02-23':1,'2025-02-24':1,
+  '2025-03-20':1,'2025-04-29':1,'2025-05-03':1,'2025-05-04':1,'2025-05-05':1,
+  '2025-05-06':1,'2025-07-21':1,'2025-08-11':1,'2025-09-15':1,'2025-09-23':1,
+  '2025-10-13':1,'2025-11-03':1,'2025-11-23':1,'2025-11-24':1,
+  '2026-01-01':1,'2026-01-12':1,'2026-02-11':1,'2026-02-23':1,'2026-03-20':1,
+  '2026-04-29':1,'2026-05-03':1,'2026-05-04':1,'2026-05-05':1,'2026-05-06':1,
+  '2026-07-20':1,'2026-08-11':1,'2026-09-21':1,'2026-09-22':1,'2026-09-23':1,
+  '2026-10-12':1,'2026-11-03':1,'2026-11-23':1,
+  '2027-01-01':1,'2027-01-11':1,'2027-02-11':1,'2027-02-23':1,'2027-03-21':1,
+  '2027-03-22':1,'2027-04-29':1,'2027-05-03':1,'2027-05-04':1,'2027-05-05':1,
+  '2027-07-19':1,'2027-08-11':1,'2027-09-20':1,'2027-09-23':1,'2027-10-11':1,
+  '2027-11-03':1,'2027-11-23':1,
+};
+
+// ====================================================================
+// ユーティリティ
+// ====================================================================
+const DOW_JP=['日','月','火','水','木','金','土'];
+function pad(n){return String(n).padStart(2,'0');}
+function fmt(t){return t?t.substring(0,5):'--:--';}
+function dateKey(d){return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;}
+function periodKey(){return `${currentYear}-${currentMonth}`;}
+function calcNet(s,e,r){
+  if(!s||!e)return 0;
+  const[sh,sm]=s.split(':').map(Number),[eh,em]=e.split(':').map(Number);
+  return Math.max(0,(eh*60+em)-(sh*60+sm)-(r||0))/60;
+}
+
+function getBusyType(date){
+  const d=date.getDay();
+  if(d===2)return'full';
+  if(d===1||d===3)return'pm';
+  if(d===5&&Math.ceil(date.getDate()/7)===2)return'full';
+  return null;
+}
+function getSaturdayNumber(date){
+  const y=date.getFullYear(),m=date.getMonth();
+  let c=0;
+  for(let i=1;i<=date.getDate();i++){if(new Date(y,m,i).getDay()===6)c++;}
+  return c;
+}
+function isKeySat(date){
+  if(date.getDay()!==6)return false;
+  const n=getSaturdayNumber(date);
+  return n===2||n===4||n===5;
+}
+
+// ====================================================================
+// データ
+// ====================================================================
+const DEFAULT_STAFF=[
+  {id:'s1',name:'田中',type:'A',prefStart:'08:30',prefEnd:'18:30',prefEndSat:'16:00',prefRest:60},
+  {id:'s2',name:'鈴木',type:'A',prefStart:'08:30',prefEnd:'18:30',prefEndSat:'16:00',prefRest:60},
+  {id:'s3',name:'佐藤',type:'A',prefStart:'08:30',prefEnd:'18:30',prefEndSat:'16:00',prefRest:60},
+  {id:'s4',name:'山田',type:'B',prefStart:'08:30',prefEnd:'18:30',prefEndSat:'16:00',prefRest:60},
+  {id:'s5',name:'伊藤',type:'part',prefStart:'08:30',prefEnd:'18:30',prefEndSat:'16:00',prefRest:60},
+  {id:'s6',name:'渡辺',type:'part',prefStart:'08:30',prefEnd:'18:30',prefEndSat:'16:00',prefRest:60},
+];
+function loadData(){
+  return{
+    staff:      JSON.parse(localStorage.getItem('shift_staff')   ||JSON.stringify(DEFAULT_STAFF)),
+    shifts:     JSON.parse(localStorage.getItem('shift_shifts')  ||'{}'),
+    duties:     JSON.parse(localStorage.getItem('shift_duties')  ||'{}'),
+    holidays:   JSON.parse(localStorage.getItem('shift_holidays')||'{}'),
+    defaultRest:parseInt(localStorage.getItem('shift_rest')      ||'60'),
+  };
+}
+function saveData(){
+  localStorage.setItem('shift_staff',   JSON.stringify(data.staff));
+  localStorage.setItem('shift_shifts',  JSON.stringify(data.shifts));
+  localStorage.setItem('shift_duties',  JSON.stringify(data.duties));
+  localStorage.setItem('shift_holidays',JSON.stringify(data.holidays));
+  localStorage.setItem('shift_rest',    String(data.defaultRest));
+}
+let data=loadData();
+let currentYear,currentMonth,activePage='shift';
+
+// ====================================================================
+// 期間
+// ====================================================================
+function initCurrentPeriod(){
+  const t=new Date();
+  currentYear=t.getFullYear();currentMonth=t.getMonth()+1;
+  if(t.getDate()<21){currentMonth--;if(currentMonth<1){currentMonth=12;currentYear--;}}
+}
+function getPeriodDates(y,m){
+  const dates=[];
+  const dim=new Date(y,m,0).getDate();
+  for(let d=21;d<=dim;d++)dates.push(new Date(y,m-1,d));
+  let ny=y,nm=m+1;if(nm>12){nm=1;ny++;}
+  for(let d=1;d<=20;d++)dates.push(new Date(ny,nm-1,d));
+  return dates;
+}
+function getPeriodLabel(y,m){
+  let ny=y,nm=m+1;if(nm>12){nm=1;ny++;}
+  return `${y}/${m}/21〜${ny}/${nm}/20`;
+}
+function isNatHol(d){return!!JAPAN_HOLIDAYS[dateKey(d)];}
+function isAddHol(d){return(data.holidays[periodKey()]||[]).includes(d.getDate());}
+function getDayType(d){
+  const w=d.getDay();
+  if(w===0||isNatHol(d)||isAddHol(d))return'holiday';
+  if(w===6)return'saturday';
+  return'weekday';
+}
+
+// ====================================================================
+// 有給計算
+// ====================================================================
+function calcPaidHoursFromEntry(entry,staffId,dayType){
+  const s=data.staff.find(s=>s.id===staffId);
+  const pt=entry.paidType||'full';
+  if(pt==='half')return 4;
+  if(pt==='custom')return calcNet(entry.paidStart,entry.paidEnd,0);
+  if(!s)return 8;
+  const st=s.prefStart||'08:30';
+  const en=dayType==='saturday'?(s.prefEndSat||'16:00'):(s.prefEnd||'18:30');
+  const re=s.prefRest!==undefined?s.prefRest:data.defaultRest;
+  return calcNet(st,en,re);
+}
+function calcPaidHours(staffId,dayType){return calcPaidHoursFromEntry({paidType:'full'},staffId,dayType);}
+
+// ====================================================================
+// 土曜カウント
+// ====================================================================
+function calcSatCounts(){
+  const pk=periodKey();
+  const dates=getPeriodDates(currentYear,currentMonth);
+  const satDates=dates.filter(d=>getDayType(d)==='saturday');
+  const staffA=data.staff.filter(s=>s.type==='A');
+  const counts={};
+  staffA.forEach(s=>counts[s.id]=0);
+  satDates.forEach(date=>{
+    const dk=dateKey(date);
+    ((data.shifts[pk]||{})[dk]||[]).forEach(e=>{
+      const st=data.staff.find(s=>s.id===e.staffId);
+      if(st&&st.type==='A'&&e.type==='work')counts[st.id]=(counts[st.id]||0)+1;
+    });
+  });
+  return{counts,total:satDates.length,staffA};
+}
+
+function renderSatBalance(cid){
+  const el=document.getElementById(cid);if(!el)return;
+  const{counts,total,staffA}=calcSatCounts();
+  if(!staffA.length){el.innerHTML='<p style="color:#999;font-size:12px;">常勤Aスタッフがいません</p>';return;}
+  const maxC=Math.max(...Object.values(counts),1);
+  const ideal=total/staffA.length;
+  const idealPct=Math.round((ideal/maxC)*100);
+  const vals=Object.values(counts);
+  const imb=Math.max(...vals)-Math.min(...vals)>=2;
+  el.innerHTML=(imb?`<div class="alert alert-warn" style="margin-bottom:8px;">⚠️ 土曜出勤に偏りがあります（最大差${Math.max(...vals)-Math.min(...vals)}回）</div>`:'')
+    +staffA.map(s=>{
+      const cnt=counts[s.id]||0;
+      const pct=Math.round((cnt/maxC)*100);
+      let col='#28a745';
+      if(cnt>ideal+.49)col='#dc3545';
+      else if(cnt<ideal-.49)col='#2c7be5';
+      return `<div class="sat-row">
+        <span class="sat-name">${s.name}</span>
+        <div class="sat-bar-wrap">
+          <div class="sat-bar-fill" style="width:${pct}%;background:${col};">${cnt>0?cnt:''}</div>
+          <div class="sat-ideal" style="left:${idealPct}%;"></div>
+        </div>
+        <span class="sat-cnt">${cnt}回</span>
+      </div>`;
+    }).join('')
+    +`<p style="font-size:10px;color:#999;margin-top:4px;">全${total}日 ｜ 理想 ${ideal.toFixed(1)}回/人 ｜ 🟢均等 🔴多 🔵少 ｜ 縦線=理想値</p>`;
+}
+
+// ====================================================================
+// 週休ステータス
+// ====================================================================
+function calcWeeklyOffStatus(){
+  const pk=periodKey();
+  const dates=getPeriodDates(currentYear,currentMonth);
+  const sh=data.shifts[pk]||{};
+  const ft=data.staff.filter(s=>s.type==='A'||s.type==='B');
+  const res={};
+  ft.forEach(s=>{res[s.id]={name:s.name,type:s.type,offDays:0};});
+  dates.forEach(date=>{
+    if(getDayType(date)==='holiday')return;
+    const dk=dateKey(date);
+    ft.forEach(s=>{
+      if((sh[dk]||[]).find(e=>e.staffId===s.id&&e.type==='off'))res[s.id].offDays++;
+    });
+  });
+  return res;
+}
+
+function renderWeeklyOffPanel(){
+  const el=document.getElementById('weekly-off-panel');
+  const status=calcWeeklyOffStatus();
+  const dates=getPeriodDates(currentYear,currentMonth);
+  const wset=new Set();
+  dates.forEach(date=>{
+    if(getDayType(date)==='holiday')return;
+    const dow=date.getDay();
+    const mon=new Date(date);
+    mon.setDate(date.getDate()-(dow===0?6:dow-1));
+    wset.add(dateKey(mon));
+  });
+  const tw=wset.size,req=tw*2;
+  const items=Object.values(status);
+  if(!items.length){el.innerHTML='<p style="color:#999;font-size:12px;">常勤スタッフがいません</p>';return;}
+  el.innerHTML=`<p style="font-size:12px;color:#666;margin-bottom:8px;">約${tw}週間 ｜ 目安: <strong>${req}日</strong>（週2日×${tw}週）</p>
+    <div class="wos-grid">`
+    +items.map(s=>{
+      if(s.type==='B')return`<div class="wos-item"><div class="wos-name">${s.name}</div><span class="wos-badge wos-ok">固定勤務</span></div>`;
+      const ok=s.offDays>=req,near=s.offDays>=req-2;
+      const cls=ok?'wos-ok':near?'wos-warn':'wos-ng';
+      const lbl=ok?'✅ OK':near?'⚠ もう少し':'❌ 不足';
+      return`<div class="wos-item"><div class="wos-name">${s.name}</div><span class="wos-badge ${cls}">${s.offDays}日 ${lbl}</span></div>`;
+    }).join('')+'</div>';
+}
+
+// ====================================================================
+// シフト表（カード形式）
+// ====================================================================
+function renderShift(){
+  renderWeeklyOffPanel();
+  renderSatBalance('sat-balance');
+
+  const dates=getPeriodDates(currentYear,currentMonth);
+  const pk=periodKey();
+  const container=document.getElementById('shift-day-list');
+  container.innerHTML='';
+
+  dates.forEach(date=>{
+    const dk=dateKey(date);
+    const dayType=getDayType(date);
+    const dow=date.getDay();
+    const busyType=(dayType==='weekday'||dayType==='saturday')?getBusyType(date):null;
+    const keySat=dayType==='saturday'&&isKeySat(date);
+    const shifts=(data.shifts[pk]||{})[dk]||[];
+    const dutyEntry=(data.duties[pk]||{})[dk];
+
+    // カード背景色
+    let bg='dc-weekday';
+    if(dayType==='saturday')bg=keySat?'dc-sat-key':'dc-saturday';
+    if(dayType==='holiday') bg='dc-holiday';
+    if(busyType==='full')   bg='dc-busy-full';
+    else if(busyType==='pm')bg='dc-busy-pm';
+
+    // 曜日色
+    let dowCol='#333';
+    if(dow===0||dayType==='holiday')dowCol='#e53935';
+    else if(dow===6)dowCol='#1565c0';
+
+    const holTag=(dayType==='holiday'&&dow!==0)?'祝':'';
+    const badges=[
+      busyType?`<span class="badge badge-busy">${busyType==='full'?'繁忙':'繁忙PM'}</span>`:'',
+      keySat?`<span class="badge badge-sat">重要土曜</span>`:'',
+      (dayType==='weekday'&&dow===3)?`<span class="badge" style="background:#e8f4fd;color:#2c7be5;font-size:10px;">非常勤PM推奨</span>`:'',
+    ].filter(Boolean).join('');
+
+    // シフト内容HTML
+    let bodyHtml='';
+
+    if(dayType==='holiday'){
+      if(dutyEntry&&dutyEntry.staffId){
+        const st=data.staff.find(s=>s.id===dutyEntry.staffId);
+        const net=calcNet(dutyEntry.start,dutyEntry.end,dutyEntry.rest!==undefined?dutyEntry.rest:60);
+        bodyHtml=`<div class="se se-duty">🔴 <span class="se-name">${st?st.name:'?'}</span><span class="se-time">${fmt(dutyEntry.start)}–${fmt(dutyEntry.end)}</span><span class="se-hrs">実${net.toFixed(1)}h</span></div>`;
+      } else {
+        bodyHtml=`<p style="color:#ccc;font-size:12px;padding:4px 0;">当番未設定</p>`;
+      }
+    } else {
+      // 常勤B
+      const bStaff=data.staff.find(s=>s.type==='B');
+      if(bStaff){
+        const bShift=shifts.find(s=>s.staffId===bStaff.id);
+        if(bShift&&bShift.type==='off'){
+          bodyHtml+=`<div class="se se-off">😴 <span class="se-name">${bStaff.name}</span> 週休 <button class="se-del" onclick="deleteShiftById('${pk}','${dk}','${bStaff.id}')">×</button></div>`;
+        } else if(bShift&&bShift.type==='paid'){
+          const ph=calcPaidHoursFromEntry(bShift,bStaff.id,dayType);
+          const pl=paidLabel(bShift);
+          bodyHtml+=`<div class="se se-paid">🟣 <span class="se-name">${bStaff.name}</span><span class="se-time">${pl}</span><span class="se-hrs">${ph.toFixed(1)}h</span><button class="se-del" onclick="deleteShiftById('${pk}','${dk}','${bStaff.id}')">×</button></div>`;
+        } else {
+          const bs=bShift?bShift.start:'08:30';
+          const be=bShift?bShift.end:(dayType==='saturday'?'16:00':'18:30');
+          const br=bShift?(bShift.rest!==undefined?bShift.rest:60):60;
+          const bn=calcNet(bs,be,br);
+          bodyHtml+=`<div class="se se-b">🔒 <span class="se-name">${bStaff.name}</span><span class="se-time">${fmt(bs)}–${fmt(be)}</span><span class="se-hrs">実${bn.toFixed(1)}h</span>${bShift?`<button class="se-del" onclick="deleteShiftById('${pk}','${dk}','${bStaff.id}')">×</button>`:''}</div>`;
+        }
+      }
+
+      // 常勤A・非常勤
+      shifts.filter(s=>{const st=data.staff.find(t=>t.id===s.staffId);return st&&st.type!=='B';})
+        .forEach(s=>{
+          const st=data.staff.find(t=>t.id===s.staffId);
+          const nm=st?st.name:'?';
+          const idx=shifts.indexOf(s);
+          const cls=st?(st.type==='A'?'se-a':'se-part'):'';
+          if(s.type==='off'){
+            bodyHtml+=`<div class="se se-off">😴 <span class="se-name">${nm}</span> 週休<button class="se-del" onclick="deleteShiftByIdx('${pk}','${dk}',${idx})">×</button></div>`;
+          } else if(s.type==='paid'){
+            const ph=calcPaidHoursFromEntry(s,s.staffId,dayType);
+            const pl=paidLabel(s);
+            bodyHtml+=`<div class="se se-paid">🟣 <span class="se-name">${nm}</span><span class="se-time">${pl}</span><span class="se-hrs">${ph.toFixed(1)}h</span><button class="se-del" onclick="deleteShiftByIdx('${pk}','${dk}',${idx})">×</button></div>`;
+          } else {
+            const net=calcNet(s.start,s.end,s.rest!==undefined?s.rest:data.defaultRest);
+            bodyHtml+=`<div class="se ${cls}"><span class="se-name">${nm}</span><span class="se-time">${fmt(s.start)}–${fmt(s.end)}</span><span class="se-hrs">実${net.toFixed(1)}h</span><button class="se-del" onclick="deleteShiftByIdx('${pk}','${dk}',${idx})">×</button></div>`;
+          }
+        });
+
+      // 第2・4・5土曜 常勤チェック
+      if(keySat){
+        const bS=data.staff.find(s=>s.type==='B');
+        const bWorking=bS&&!shifts.find(e=>e.staffId===bS.id&&(e.type==='off'))?1:0;
+        const fW=shifts.filter(e=>{const st=data.staff.find(s=>s.id===e.staffId);return st&&(st.type==='A'||st.type==='B')&&e.type==='work';}).length;
+        const total=fW+(bS&&!shifts.find(e=>e.staffId===bS.id)?1:0);
+        bodyHtml+=total>=3
+          ?`<div class="alert alert-ok mini-warn">✅ 常勤${total}名（9〜13時 推奨3名以上 OK）</div>`
+          :`<div class="alert alert-warn mini-warn">⚠️ 常勤${total}名（9〜13時 推奨3名・現在不足）</div>`;
+      }
+
+      bodyHtml+=`<button class="add-day-btn" onclick="openShiftModal('${dk}','${pk}','${dayType}','${busyType||''}')">＋ シフトを追加</button>`;
+    }
+
+    // 今日かどうか
+    const today=new Date();
+    const isToday=date.getFullYear()===today.getFullYear()&&date.getMonth()===today.getMonth()&&date.getDate()===today.getDate();
+
+    const card=document.createElement('div');
+    card.className=`day-card ${bg}${isToday?' open':''}`;
+    card.innerHTML=`
+      <div class="day-card-head" onclick="this.parentElement.classList.toggle('open')">
+        <span class="day-date" style="color:${dowCol};">${date.getMonth()+1}/${date.getDate()}${isToday?'<span style="font-size:10px;background:var(--blue);color:#fff;border-radius:3px;padding:1px 4px;margin-left:4px;">今日</span>':''}</span>
+        <span class="day-dow" style="color:${dowCol};">${DOW_JP[dow]}${holTag}</span>
+        <div class="day-badges">${badges}</div>
+        <span class="day-toggle">▾</span>
+      </div>
+      <div class="day-body">${bodyHtml}</div>`;
+    container.appendChild(card);
+  });
+}
+
+function paidLabel(e){
+  if(!e.paidType||e.paidType==='full')return '全日有給';
+  if(e.paidType==='half')return `半日有給(${e.paidAmPm==='am'?'午前':'午後'})`;
+  return `時間指定有給(${fmt(e.paidStart)}–${fmt(e.paidEnd)})`;
+}
+
+// ====================================================================
+// シフトモーダル
+// ====================================================================
+function onEntryTypeChange(){
+  const type=document.getElementById('modal-entry-type').value;
+  const ts=document.getElementById('modal-time-section');
+  const ps=document.getElementById('modal-paid-section');
+  if(type==='work'){ts.style.display='';ps.style.display='none';}
+  else if(type==='paid'){ts.style.display='none';ps.style.display='';document.getElementById('modal-paid-type').value='full';onPaidTypeChange();}
+  else{ts.style.display='none';ps.style.display='none';}
+}
+
+function onPaidTypeChange(){
+  const pt=document.getElementById('modal-paid-type').value;
+  document.getElementById('modal-paid-half-section').style.display  =pt==='half'  ?'':'none';
+  document.getElementById('modal-paid-custom-section').style.display=pt==='custom'?'':'none';
+  updatePaidPreview();
+}
+
+function updatePaidPreview(){
+  const staffId=document.getElementById('modal-staff').value;
+  const modal=document.getElementById('shift-modal');
+  const dayType=modal._dayType||'weekday';
+  const pt=document.getElementById('modal-paid-type').value;
+  const el=document.getElementById('modal-paid-hours');
+  const s=data.staff.find(s=>s.id===staffId);
+  let hrs=0,label='';
+  if(pt==='full'){
+    hrs=calcPaidHoursFromEntry({paidType:'full'},staffId,dayType);
+    const st=s?s.prefStart:'08:30';
+    const en=s?(dayType==='saturday'?(s.prefEndSat||'16:00'):(s.prefEnd||'18:30')):'18:30';
+    const re=s?(s.prefRest!==undefined?s.prefRest:data.defaultRest):data.defaultRest;
+    label=`全日有給：${hrs.toFixed(2)}時間（${fmt(st)}–${fmt(en)} 休憩${re}分）`;
+  } else if(pt==='half'){
+    hrs=4;
+    const ampm=document.getElementById('modal-paid-half-ampm').value;
+    label=`半日有給（${ampm==='am'?'午前':'午後'}）：4.00時間`;
+  } else {
+    const ps2=document.getElementById('modal-paid-start').value;
+    const pe2=document.getElementById('modal-paid-end').value;
+    hrs=calcNet(ps2,pe2,0);
+    label=hrs>0?`時間指定有給：${hrs.toFixed(2)}時間（${fmt(ps2)}–${fmt(pe2)}）`:'開始・終了を入力してください';
+  }
+  el.textContent=label?`🟣 ${label}（月170hに含む）`:'';
+}
+
+function onStaffChange(){
+  const id=document.getElementById('modal-staff').value;
+  const s=data.staff.find(s=>s.id===id);
+  const hint=document.getElementById('modal-pref-hint');
+  if(s){
+    hint.textContent=`💡 希望: ${fmt(s.prefStart||'08:30')}–${fmt(s.prefEnd||'18:30')} 休憩${s.prefRest!==undefined?s.prefRest:data.defaultRest}分`;
+    document.getElementById('modal-start').value=s.prefStart||'08:30';
+    document.getElementById('modal-end').value  =s.prefEnd  ||'18:30';
+    document.getElementById('modal-rest').value =s.prefRest!==undefined?s.prefRest:data.defaultRest;
+  } else hint.textContent='';
+  updateActualHours();
+  if(document.getElementById('modal-paid-section').style.display!=='none')updatePaidPreview();
+}
+
+function updateActualHours(){
+  const s=document.getElementById('modal-start').value;
+  const e=document.getElementById('modal-end').value;
+  const r=parseInt(document.getElementById('modal-rest').value)||0;
+  const el=document.getElementById('modal-actual-hours');
+  el.textContent=(s&&e&&s<e)?`実働: ${calcNet(s,e,r).toFixed(2)}時間（休憩${r}分除く）`:'';
+}
+
+function openShiftModal(dk,pk,dayType,busyType){
+  const modal=document.getElementById('shift-modal');
+  modal._dk=dk;modal._pk=pk;modal._dayType=dayType;
+  document.getElementById('shift-modal-title').textContent=`シフト登録（${dk}）`;
+  const note=document.getElementById('shift-modal-busy-note');
+  if(busyType==='full'){note.style.display='block';note.textContent='⚡ 繁忙日（終日）です。';}
+  else if(busyType==='pm'){note.style.display='block';note.textContent=new Date(dk).getDay()===3?'⚡ 繁忙PM：非常勤スタッフを午後に配置推奨。':'⚡ 繁忙PM';}
+  else note.style.display='none';
+
+  const sel=document.getElementById('modal-staff');
+  sel.innerHTML='';
+  const isWed=busyType==='pm'&&new Date(dk).getDay()===3;
+  [...data.staff].sort((a,b)=>isWed&&a.type==='part'&&b.type!=='part'?-1:isWed&&b.type==='part'&&a.type!=='part'?1:0)
+    .forEach(s=>{
+      const opt=document.createElement('option');opt.value=s.id;
+      const tl=s.type==='A'?'常勤A':s.type==='B'?'常勤B':'非常勤';
+      opt.textContent=`${s.name}（${tl}）`;sel.appendChild(opt);
+    });
+
+  document.getElementById('modal-entry-type').value='work';
+  onEntryTypeChange();onStaffChange();
+  modal.classList.add('open');
+}
+
+function saveShiftEntry(){
+  const modal=document.getElementById('shift-modal');
+  const dk=modal._dk,pk=modal._pk;
+  const staffId=document.getElementById('modal-staff').value;
+  const et=document.getElementById('modal-entry-type').value;
+  const start=document.getElementById('modal-start').value;
+  const end  =document.getElementById('modal-end').value;
+  const rest =parseInt(document.getElementById('modal-rest').value)||0;
+  if(!staffId){alert('担当者を選択してください');return;}
+  if(et==='work'&&start>=end){alert('終了時間は開始時間より後にしてください');return;}
+
+  if(!data.shifts[pk])data.shifts[pk]={};
+  if(!data.shifts[pk][dk])data.shifts[pk][dk]=[];
+
+  let entry;
+  if(et==='off'){entry={staffId,type:'off'};}
+  else if(et==='paid'){
+    const pt=document.getElementById('modal-paid-type').value;
+    if(pt==='half'){const ampm=document.getElementById('modal-paid-half-ampm').value;entry={staffId,type:'paid',paidType:'half',paidAmPm:ampm};}
+    else if(pt==='custom'){
+      const ps=document.getElementById('modal-paid-start').value;const pe=document.getElementById('modal-paid-end').value;
+      if(!ps||!pe||ps>=pe){alert('有給の開始・終了時間を正しく入力してください');return;}
+      entry={staffId,type:'paid',paidType:'custom',paidStart:ps,paidEnd:pe};
+    } else entry={staffId,type:'paid',paidType:'full'};
+  } else entry={staffId,type:'work',start,end,rest};
+
+  const idx=data.shifts[pk][dk].findIndex(s=>s.staffId===staffId);
+  if(idx>=0)data.shifts[pk][dk][idx]=entry;
+  else data.shifts[pk][dk].push(entry);
+
+  saveData();closeModal('shift-modal');renderShift();
+}
+
+function deleteShiftById(pk,dk,staffId){
+  if(!data.shifts[pk]||!data.shifts[pk][dk])return;
+  data.shifts[pk][dk]=data.shifts[pk][dk].filter(s=>s.staffId!==staffId);
+  saveData();renderShift();
+}
+function deleteShiftByIdx(pk,dk,idx){
+  if(!data.shifts[pk]||!data.shifts[pk][dk])return;
+  data.shifts[pk][dk].splice(idx,1);
+  saveData();renderShift();
+}
+
+// ====================================================================
+// 当番設定
+// ====================================================================
+let dutyModalDk=null;
+function updateDutyNet(){
+  const s=document.getElementById('duty-modal-start').value;
+  const e=document.getElementById('duty-modal-end').value;
+  const r=parseInt(document.getElementById('duty-modal-rest').value)||0;
+  const el=document.getElementById('duty-modal-net');
+  el.textContent=(s&&e&&s<e)?`実働: ${calcNet(s,e,r).toFixed(2)}時間`:'';
+}
+
+function renderDutySet(){
+  const pk=periodKey();
+  const dates=getPeriodDates(currentYear,currentMonth);
+  const natHols=dates.filter(d=>isNatHol(d));
+  document.getElementById('holiday-auto-list').innerHTML=!natHols.length?'この期間に法定祝日はありません':
+    natHols.map(d=>`<span style="display:inline-block;background:var(--yellow-lt);border-radius:4px;padding:2px 8px;margin:2px;font-size:12px;">${d.getMonth()+1}/${d.getDate()}(${DOW_JP[d.getDay()]})</span>`).join('');
+  document.getElementById('holiday-input').value=(data.holidays[pk]||[]).join(',');
+
+  const holidays=dates.filter(d=>getDayType(d)==='holiday');
+  const listEl=document.getElementById('duty-preset-list');
+  listEl.innerHTML=!holidays.length?'<p style="padding:14px;color:#999;font-size:13px;">この期間に休日はありません</p>':
+    holidays.map(date=>{
+      const dk=dateKey(date),dow=date.getDay();
+      const entry=(data.duties[pk]||{})[dk];
+      const st=entry&&entry.staffId?data.staff.find(s=>s.id===entry.staffId):null;
+      const tag=isNatHol(date)&&dow!==0?'祝':isAddHol(date)&&dow!==0?'休':'';
+      const col=dow===0||(tag&&dow!==0)?'#e53935':'#333';
+      return `<div class="duty-row">
+        <span class="duty-date" style="color:${col};">${date.getMonth()+1}/${date.getDate()}<br><span style="font-size:11px;">(${DOW_JP[dow]}${tag})</span></span>
+        <span class="duty-info">${st?`<strong>${st.name}</strong><br><span style="color:#888;font-size:12px;">${fmt(entry.start)}–${fmt(entry.end)}</span>`:'<span style="color:#bbb;">未設定</span>'}</span>
+        <button class="btn btn-warning btn-sm duty-btn" onclick="openDutyModal('${dk}','${pk}')">設定</button>
+      </div>`;
+    }).join('');
+
+  const staffA=data.staff.filter(s=>s.type==='A');
+  document.getElementById('duty-check-list').innerHTML=!staffA.length?'<p style="color:#999;">常勤Aスタッフがいません</p>':
+    staffA.map(s=>{
+      const cnt=holidays.filter(d=>{const e=(data.duties[pk]||{})[dateKey(d)];return e&&e.staffId===s.id;}).length;
+      const ok=cnt>=1;
+      return `<div style="display:flex;align-items:center;padding:10px;border-bottom:1px solid #f0f0f0;gap:10px;">
+        <span style="font-weight:700;flex:1;">${s.name}</span>
+        <span class="badge" style="background:${ok?'var(--green-lt)':'var(--red-lt)'};color:${ok?'var(--green-dk)':'var(--red-dk)'};">${cnt}回</span>
+        <span>${ok?'✅ OK':'⚠️ 不足'}</span>
+      </div>`;
+    }).join('');
+}
+
+function openDutyModal(dk,pk){
+  dutyModalDk=dk;
+  document.getElementById('duty-modal')._pk=pk;
+  document.getElementById('duty-modal-title').textContent=`休日当番設定（${dk}）`;
+  const sel=document.getElementById('duty-modal-staff');
+  sel.innerHTML='<option value="">-- 未設定 --</option>';
+  data.staff.filter(s=>s.type==='A').forEach(s=>{const o=document.createElement('option');o.value=s.id;o.textContent=s.name;sel.appendChild(o);});
+  const entry=(data.duties[pk]||{})[dk];
+  if(entry&&entry.staffId){
+    sel.value=entry.staffId;
+    document.getElementById('duty-modal-start').value=entry.start||'09:00';
+    document.getElementById('duty-modal-end').value  =entry.end  ||'18:00';
+    document.getElementById('duty-modal-rest').value =entry.rest!==undefined?entry.rest:60;
+  } else {
+    sel.value='';
+    document.getElementById('duty-modal-start').value='09:00';
+    document.getElementById('duty-modal-end').value  ='18:00';
+    document.getElementById('duty-modal-rest').value =60;
+  }
+  updateDutyNet();
+  document.getElementById('duty-modal').classList.add('open');
+}
+function saveDutyEntry(){
+  const pk=document.getElementById('duty-modal')._pk;
+  const staffId=document.getElementById('duty-modal-staff').value;
+  const s=document.getElementById('duty-modal-start').value;
+  const e=document.getElementById('duty-modal-end').value;
+  const r=parseInt(document.getElementById('duty-modal-rest').value)||0;
+  if(!staffId){alert('担当者を選択してください');return;}
+  if(s>=e){alert('終了時間は開始時間より後にしてください');return;}
+  if(!data.duties[pk])data.duties[pk]={};
+  data.duties[pk][dutyModalDk]={staffId,start:s,end:e,rest:r};
+  saveData();closeModal('duty-modal');renderDutySet();
+}
+function clearDutyEntry(){
+  const pk=document.getElementById('duty-modal')._pk;
+  if(!data.duties[pk])data.duties[pk]={};
+  delete data.duties[pk][dutyModalDk];
+  saveData();closeModal('duty-modal');renderDutySet();
+}
+function saveHolidays(){
+  const pk=periodKey();
+  const days=document.getElementById('holiday-input').value.split(',')
+    .map(d=>parseInt(d.trim())).filter(d=>!isNaN(d)&&d>=1&&d<=31);
+  data.holidays[pk]=days;saveData();renderDutySet();alert('追加休日を保存しました');
+}
+
+// ====================================================================
+// スタッフ
+// ====================================================================
+let editingStaffId=null;
+function renderStaff(){
+  const el=document.getElementById('staff-list');
+  el.innerHTML='';
+  data.staff.forEach(s=>{
+    const bc=s.type==='A'?'badge-a':s.type==='B'?'badge-b':'badge-part';
+    const bl=s.type==='A'?'常勤A':s.type==='B'?'常勤B':'非常勤';
+    const div=document.createElement('div');div.className='staff-item';
+    div.innerHTML=`<span class="badge ${bc}">${bl}</span><span class="staff-name">${s.name}</span>
+      <div class="staff-btns">
+        <button class="btn btn-outline btn-sm" onclick="openEditStaffModal('${s.id}')">編集</button>
+        <button class="btn btn-danger btn-sm"  onclick="deleteStaff('${s.id}')">削除</button>
+      </div>`;
+    el.appendChild(div);
+  });
+  renderPrefTimeList();
+  document.getElementById('default-rest').value=data.defaultRest;
+}
+
+function renderPrefTimeList(){
+  const el=document.getElementById('pref-time-list');
+  el.innerHTML=data.staff.map(s=>{
+    const bc=s.type==='A'?'badge-a':s.type==='B'?'badge-b':'badge-part';
+    const bl=s.type==='A'?'常勤A':s.type==='B'?'常勤B':'非常勤';
+    return `<div style="border-bottom:1px solid var(--gray-lt);padding:12px 0;">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
+        <span class="badge ${bc}">${bl}</span><strong>${s.name}</strong>
+      </div>
+      <div class="pref-grid">
+        <div><label>希望開始</label><input type="time" value="${s.prefStart||'08:30'}" onchange="updatePref('${s.id}','prefStart',this.value)"/></div>
+        <div><label>希望終了（平日）</label><input type="time" value="${s.prefEnd||'18:30'}" onchange="updatePref('${s.id}','prefEnd',this.value)"/></div>
+        <div><label>希望終了（土曜）</label><input type="time" value="${s.prefEndSat||'16:00'}" onchange="updatePref('${s.id}','prefEndSat',this.value)"/></div>
+        <div><label>希望休憩（分）</label><input type="number" min="0" max="120" step="15" value="${s.prefRest!==undefined?s.prefRest:60}" inputmode="numeric" onchange="updatePref('${s.id}','prefRest',parseInt(this.value)||0)"/></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function updatePref(id,f,v){const s=data.staff.find(s=>s.id===id);if(s){s[f]=v;saveData();}}
+function saveDefaultRest(){
+  const v=parseInt(document.getElementById('default-rest').value);
+  if(isNaN(v)||v<0){alert('0以上を入力');return;}
+  data.defaultRest=v;saveData();alert(`デフォルト休憩 ${v}分 に設定しました`);
+}
+function openAddStaffModal(){
+  editingStaffId=null;
+  document.getElementById('staff-modal-title').textContent='スタッフ追加';
+  document.getElementById('staff-name-input').value='';
+  document.getElementById('staff-type-input').value='A';
+  document.getElementById('staff-modal').classList.add('open');
+}
+function openEditStaffModal(id){
+  editingStaffId=id;
+  const s=data.staff.find(s=>s.id===id);
+  document.getElementById('staff-modal-title').textContent='スタッフ編集';
+  document.getElementById('staff-name-input').value=s.name;
+  document.getElementById('staff-type-input').value=s.type;
+  document.getElementById('staff-modal').classList.add('open');
+}
+function saveStaff(){
+  const name=document.getElementById('staff-name-input').value.trim();
+  const type=document.getElementById('staff-type-input').value;
+  if(!name){alert('名前を入力してください');return;}
+  if(editingStaffId){const s=data.staff.find(s=>s.id===editingStaffId);s.name=name;s.type=type;}
+  else data.staff.push({id:'s'+Date.now(),name,type,prefStart:'08:30',prefEnd:'18:30',prefEndSat:'16:00',prefRest:60});
+  saveData();closeModal('staff-modal');renderStaff();
+}
+function deleteStaff(id){
+  if(!confirm('このスタッフを削除しますか？'))return;
+  data.staff=data.staff.filter(s=>s.id!==id);saveData();renderStaff();
+}
+
+// ====================================================================
+// 集計
+// ====================================================================
+function renderSummary(){
+  renderSatBalance('sat-balance-summary');
+  const pk=periodKey();
+  const dates=getPeriodDates(currentYear,currentMonth);
+  const shifts=data.shifts[pk]||{};
+  const duties=data.duties[pk]||{};
+  const tbody=document.getElementById('summary-body');
+  tbody.innerHTML='';
+
+  data.staff.forEach(s=>{
+    let wh=0,pd=0,od=0,sc=0;
+    if(s.type==='B'){
+      dates.forEach(date=>{
+        const dk=dateKey(date),dt=getDayType(date);
+        if(dt==='holiday')return;
+        const bShift=(shifts[dk]||[]).find(e=>e.staffId===s.id);
+        if(bShift&&bShift.type==='off'){od++;return;}
+        if(bShift&&bShift.type==='paid'){pd++;wh+=calcPaidHoursFromEntry(bShift,s.id,dt);return;}
+        if(bShift&&bShift.type==='work')wh+=calcNet(bShift.start,bShift.end,bShift.rest!==undefined?bShift.rest:60);
+        else wh+=(dt==='saturday'?calcNet('08:30','16:00',60):calcNet('08:30','18:30',60));
+        if(dt==='saturday')sc++;
+      });
+    } else {
+      Object.keys(shifts).forEach(dk=>{
+        (shifts[dk]||[]).forEach(e=>{
+          if(e.staffId!==s.id)return;
+          const dt=getDayType(new Date(dk));
+          if(e.type==='off'){od++;return;}
+          if(e.type==='paid'){pd++;wh+=calcPaidHoursFromEntry(e,s.id,dt);return;}
+          if(e.type==='work'){
+            wh+=calcNet(e.start,e.end,e.rest!==undefined?e.rest:data.defaultRest);
+            if(dt==='saturday'&&s.type==='A')sc++;
+          }
+        });
+      });
+      Object.keys(duties).forEach(dk=>{
+        const e=duties[dk];
+        if(e&&e.staffId===s.id)wh+=calcNet(e.start,e.end,e.rest!==undefined?e.rest:60);
+      });
+    }
+    const limit=s.type==='part'?31:170;
+    const over=wh>limit;
+    const tl=s.type==='A'?'常勤A':s.type==='B'?'常勤B':'非常勤';
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${s.name}</td><td>${tl}</td>
+      <td class="${over?'over':'ok'}">${wh.toFixed(1)}h</td>
+      <td>${pd>0?`<span style="color:var(--purple);font-weight:700;">${pd}日</span>`:'–'}</td>
+      <td>${od>0?`<span style="color:var(--gray);">${od}日</span>`:'–'}</td>
+      <td>${s.type==='B'?'全土曜':sc+'回'}</td>
+      <td>${limit}h</td>
+      <td>${over?'⚠️超過':'✅OK'}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+// ====================================================================
+// UI制御
+// ====================================================================
+function toggleSection(hd){
+  hd.classList.toggle('open');
+  const bd=hd.nextElementSibling;
+  bd.classList.toggle('open');
+}
+
+function showPage(id,btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  if(btn)btn.classList.add('active');
+  activePage=id;renderPage(id);
+}
+
+function changeMonth(d){
+  currentMonth+=d;
+  if(currentMonth>12){currentMonth=1;currentYear++;}
+  if(currentMonth<1){currentMonth=12;currentYear--;}
+  renderPage(activePage);
+}
+
+function renderPage(id){
+  const lbl=getPeriodLabel(currentYear,currentMonth);
+  document.getElementById('header-period').textContent=lbl;
+  if(id==='shift'){document.getElementById('shift-month-label').textContent=lbl;renderShift();}
+  if(id==='duty-set'){document.getElementById('dutyset-month-label').textContent=lbl;renderDutySet();}
+  if(id==='staff')renderStaff();
+  if(id==='summary'){document.getElementById('summary-month-label').textContent=lbl;renderSummary();}
+}
+
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+document.querySelectorAll('.modal-ov').forEach(el=>{
+  el.addEventListener('click',e=>{if(e.target===el)el.classList.remove('open');});
+});
+
+// 今日の日付カードを自動スクロール
+function scrollToToday(){
+  setTimeout(()=>{
+    const today=document.querySelector('.day-card.open');
+    if(today)today.scrollIntoView({behavior:'smooth',block:'start'});
+  },200);
+}
+
+initCurrentPeriod();
+
+// ====================================================================
+// Firebase リアルタイム共有
+// ====================================================================
+const FB_CONFIG = {
+  apiKey: "AIzaSyDpNARQYlai0slDYnFtC5e7uyYKIXx0StI",
+  authDomain: "shifi-3b171.firebaseapp.com",
+  databaseURL: "https://shifi-3b171-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "shifi-3b171",
+  storageBucket: "shifi-3b171.firebasestorage.app",
+  messagingSenderId: "715410023642",
+  appId: "1:715410023642:web:39484c8cf21297fb8cf1e3"
+};
+
+// Firebase SDK (CDN compat版) 読み込み後に初期化
+let fbDB = null;
+let fbSyncing = false;
+
+function initFirebase() {
+  return new Promise((resolve) => {
+    if (typeof firebase !== 'undefined') { resolve(); return; }
+    // SDKスクリプトを動的に追加
+    const s1 = document.createElement('script');
+    s1.src = 'https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js';
+    s1.onload = () => {
+      const s2 = document.createElement('script');
+      s2.src = 'https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js';
+      s2.onload = resolve;
+      document.head.appendChild(s2);
+    };
+    document.head.appendChild(s1);
+  });
+}
+
+async function setupFirebase() {
+  showSyncStatus('接続中…', '#888');
+  try {
+    await initFirebase();
+    firebase.initializeApp(FB_CONFIG);
+    fbDB = firebase.database();
+
+    // クラウドのデータを監視（リアルタイム同期）
+    fbDB.ref('shiftData').on('value', (snap) => {
+      const cloudData = snap.val();
+      if (!cloudData) {
+        // クラウドが空 → ローカルをアップロード
+        uploadToCloud();
+        return;
+      }
+      if (fbSyncing) return; // 自分の書き込みは無視
+      // クラウドデータをローカルに反映
+      data.staff    = cloudData.staff    || data.staff;
+      data.shifts   = cloudData.shifts   || {};
+      data.duties   = cloudData.duties   || {};
+      data.holidays = cloudData.holidays || {};
+      data.defaultRest = cloudData.defaultRest || 60;
+      saveData(); // localStorageにも保存
+      renderPage(activePage);
+      showSyncStatus('✅ 同期済み', '#28a745');
+    });
+  } catch(e) {
+    console.error('Firebase error:', e);
+    showSyncStatus('❌ オフライン', '#dc3545');
+  }
+}
+
+function uploadToCloud() {
+  if (!fbDB) return;
+  fbSyncing = true;
+  fbDB.ref('shiftData').set({
+    staff: data.staff,
+    shifts: data.shifts,
+    duties: data.duties,
+    holidays: data.holidays,
+    defaultRest: data.defaultRest,
+    updatedAt: Date.now()
+  }).then(() => {
+    showSyncStatus('✅ 保存済み', '#28a745');
+    setTimeout(() => fbSyncing = false, 500);
+  }).catch(() => {
+    showSyncStatus('❌ 保存失敗', '#dc3545');
+    fbSyncing = false;
+  });
+}
+
+function showSyncStatus(msg, color) {
+  const el = document.getElementById('sync-status');
+  if (el) { el.textContent = msg; el.style.color = color; }
+}
+
+// saveData をオーバーライド → クラウドにも保存
+const _origSaveData = saveData;
+window.saveData = function() {
+  _origSaveData();
+  uploadToCloud();
+};
+
+// ヘッダーに同期ステータスを追加
+document.querySelector('header .htxt').insertAdjacentHTML('beforeend',
+  '<p id="sync-status" style="font-size:10px;margin-top:1px;opacity:.9;">接続中…</p>'
+);
+
+renderPage('shift');
+scrollToToday();
+setupFirebase();
+</script>
+</body>
+</html>
