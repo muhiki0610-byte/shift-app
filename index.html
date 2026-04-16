@@ -20,7 +20,7 @@
   --nav-h:56px; --header-h:52px;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
-html,body{height:100%;overflow-x:hidden;}
+html,body{min-height:100%;overflow-x:hidden;overflow-y:auto;}
 body{font-family:-apple-system,'Helvetica Neue',Arial,sans-serif;background:var(--gray-bg);color:#222;font-size:15px;padding-bottom:calc(var(--nav-h)+env(safe-area-inset-bottom));}
 
 /* ── ヘッダー ── */
@@ -55,7 +55,7 @@ nav button.active{color:var(--blue);}
 nav button.active .nav-ico{transform:scale(1.1);}
 
 /* ── ページ ── */
-.page{display:none;padding:12px 12px 0;}
+.page{display:none;padding:12px 12px 80px;}
 .page.active{display:block;}
 
 /* ── 月セレクター ── */
