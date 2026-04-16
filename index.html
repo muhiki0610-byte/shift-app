@@ -1821,11 +1821,8 @@ function renderWishArea(pk,pkW,pkDone){
   if(!s){el.innerHTML='';return;}
 
   const dates=getPeriodDates(currentYear,currentMonth);
-  const workDates=dates.filter(d=>getDayType(d)!=='holiday');
   const staffW=pkW[s.id]||{};
   const isDone=!!pkDone[s.id];
-
-  // 締め切りチェック
   const isPassed=isWishDeadlinePassed();
   const deadlineLabel=getDeadlineLabel();
 
@@ -1833,25 +1830,16 @@ function renderWishArea(pk,pkW,pkDone){
   const btnArea=document.getElementById('wish-complete-btn-area');
   const btn=document.getElementById('wish-complete-btn');
   if(btnArea&&btn){
-    if(isPassed){
-      // 締め切り後：完了ボタン非表示
-      btnArea.style.display='none';
-    } else {
+    if(isPassed){btnArea.style.display='none';}
+    else{
       btnArea.style.display='';
       if(isDone){
         btn.textContent='✅ 入力済み（タップして修正モードに戻す）';
-        btn.style.background='#d4edda';
-        btn.style.color='#155724';
-        btn.style.border='2px solid #28a745';
-        btn.style.boxShadow='none';
+        btn.style.cssText='display:block;width:100%;padding:16px;border-radius:12px;text-align:center;font-size:16px;font-weight:700;cursor:pointer;touch-action:manipulation;user-select:none;background:#d4edda;color:#155724;border:2px solid #28a745;';
       } else {
         btn.textContent='✅ 入力完了！（タップして完了にする）';
-        btn.style.background='#28a745';
-        btn.style.color='#fff';
-        btn.style.border='none';
-        btn.style.boxShadow='0 4px 12px rgba(40,167,69,0.4)';
+        btn.style.cssText='display:block;width:100%;padding:16px;border-radius:12px;text-align:center;font-size:16px;font-weight:700;cursor:pointer;touch-action:manipulation;user-select:none;background:#28a745;color:#fff;border:none;box-shadow:0 4px 12px rgba(40,167,69,0.4);';
       }
-      // イベント再設定
       const newBtn=btn.cloneNode(true);
       btn.parentNode.replaceChild(newBtn,btn);
       const handler=()=>toggleWishComplete(pk,s.id);
@@ -1861,53 +1849,113 @@ function renderWishArea(pk,pkW,pkDone){
   }
 
   const bc=s.type==='A'?'badge-a':s.type==='B'?'badge-b':s.type==='C'?'badge-c':'badge-part';
+  const wishCount=Object.keys(staffW).length;
+
+  // 期間の日付をSetに
+  const periodSet=new Set(dates.map(d=>dateKey(d)));
+
+  // 1ヶ月分のカレンダーHTMLを生成するヘルパー
+  function buildMonthCal(year,month){
+    // month: 0-indexed
+    const daysInMonth=new Date(year,month+1,0).getDate();
+    const firstDow=new Date(year,month,1).getDay(); // 1日の曜日
+    const monthLabel=`${year}年${month+1}月`;
+    let cellsHtml='';
+    // 空白セル（月初の曜日分）
+    for(let i=0;i<firstDow;i++){
+      cellsHtml+=`<div></div>`;
+    }
+    for(let day=1;day<=daysInMonth;day++){
+      const d=new Date(year,month,day);
+      const dk=dateKey(d);
+      const dow=d.getDay();
+      const inPeriod=periodSet.has(dk);
+      const dayType=getDayType(d);
+      const isHol=dayType==='holiday';
+      const w=staffW[dk];
+
+      if(!inPeriod){
+        // 期間外：薄く
+        const dateColor=dow===0?'#ffcdd2':dow===6?'#bbdefb':'#ccc';
+        cellsHtml+=`<div style="min-height:48px;background:#f9f9f9;border-radius:6px;
+          display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:0.4;">
+          <span style="font-size:13px;color:${dateColor};">${day}</span>
+        </div>`;
+        continue;
+      }
+      if(isHol){
+        cellsHtml+=`<div style="min-height:48px;background:#fff3cd;border:1.5px solid #ffe082;border-radius:6px;
+          display:flex;flex-direction:column;align-items:center;justify-content:center;">
+          <span style="font-size:13px;font-weight:700;color:#e53935;">${day}</span>
+          <span style="font-size:8px;color:#e53935;">休</span>
+        </div>`;
+        continue;
+      }
+
+      let bg='#fff',border='#e8e8e8',icon='',sub='';
+      const isSat=dow===6;
+      if(isSat&&!w){bg='#fffde7';border='#fff59d';}
+      if(w){
+        if(w.type==='off'){bg='#fde8e8';border='#ef9a9a';icon='🔴';sub='休み';}
+        else if(w.type==='paid'){
+          bg='#ede7f6';border='#ce93d8';icon='🟣';
+          sub=w.paidType==='half'?'半日':w.paidType==='custom'?'時間':'有給';
+        } else if(w.type==='work'){
+          bg='#e3f2fd';border='#90caf9';icon='🕐';
+          sub=fmt(w.workStart)+'~';
+        }
+      }
+      const dateColor=dow===0?'#e53935':dow===6?'#1565c0':'#333';
+
+      if(isPassed){
+        cellsHtml+=`<div style="min-height:48px;background:${bg};border:1.5px solid ${border};border-radius:6px;
+          display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:0.75;">
+          <span style="font-size:13px;font-weight:700;color:${dateColor};">${day}</span>
+          ${icon?`<span style="font-size:11px;line-height:1;">${icon}</span>`:''}
+          ${sub?`<span style="font-size:8px;color:#666;">${sub}</span>`:''}
+        </div>`;
+      } else {
+        cellsHtml+=`<div onclick="openWishDayModal('${pk}','${s.id}','${dk}')"
+          style="min-height:48px;background:${bg};border:1.5px solid ${border};border-radius:6px;
+          display:flex;flex-direction:column;align-items:center;justify-content:center;
+          cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0.08);
+          ${w?'box-shadow:0 1px 4px rgba(0,0,0,0.12);':''}">
+          <span style="font-size:13px;font-weight:700;color:${dateColor};">${day}</span>
+          ${icon?`<span style="font-size:11px;line-height:1;">${icon}</span>`:''}
+          ${sub?`<span style="font-size:8px;color:#555;font-weight:700;">${sub}</span>`:''}
+        </div>`;
+      }
+    }
+    return `
+      <div style="font-size:13px;font-weight:700;color:#333;margin:12px 0 6px;">${monthLabel}</div>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px;">
+        ${['日','月','火','水','木','金','土'].map((d,i)=>`<div style="text-align:center;font-size:11px;font-weight:700;padding:3px 0;color:${i===0?'#e53935':i===6?'#1565c0':'#888'};">${d}</div>`).join('')}
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;">${cellsHtml}</div>`;
+  }
+
+  // 期間は21日〜翌月20日なので2ヶ月分表示
+  // currentMonth は表示月（21日〜翌20日の"翌月"番号）
+  // 例：currentMonth=5 → 4/21〜5/20 → 4月と5月を表示
+  const m1Year=currentMonth===1?currentYear-1:currentYear;
+  const m1Month=currentMonth===1?11:currentMonth-2; // 0-indexed, 前月
+  const m2Year=currentYear;
+  const m2Month=currentMonth-1; // 0-indexed, 当月
 
   el.innerHTML=`
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
       <span class="badge ${bc}">${typeLabel(s)}</span>
       <strong style="font-size:15px;">${s.name}</strong>
-      <span style="font-size:11px;color:#888;margin-left:auto;">
-        希望: ${Object.keys(staffW).length}日
-      </span>
+      <span style="font-size:11px;color:#888;margin-left:auto;">希望: ${wishCount}日</span>
     </div>
-    <p style="font-size:11px;color:${isPassed?'#b71c1c':'#888'};margin-bottom:8px;">
-      ${isPassed?`🔒 締め切り済み（${deadlineLabel}まで）- 閲覧のみ`:'日付をタップして希望の種類を選んでください'}
-    </p>
-    <div style="display:flex;flex-wrap:wrap;gap:6px;">
-      ${workDates.map(d=>{
-        const dk=dateKey(d);
-        const dow=d.getDay();
-        const w=staffW[dk];
-        let bg='#f8f9ff',border='#dde5f5',label=`${d.getMonth()+1}/${d.getDate()}`,color=dow===6?'#1565c0':'#333';
-        if(w){
-          if(w.type==='off'){bg='#fde8e8';border='#f5c6cb';label+=`<br><span style="font-size:9px;">😴希望休</span>`;}
-          else if(w.type==='paid'){
-            bg='#ede7f6';border='#ce93d8';
-            const pl=w.paidType==='half'?`半日(${w.paidAmPm==='am'?'午前':'午後'})`:w.paidType==='custom'?`${fmt(w.paidStart)}–${fmt(w.paidEnd)}`:'全日';
-            label+=`<br><span style="font-size:9px;">🟣有給(${pl})</span>`;
-          } else if(w.type==='work'){
-            bg='#e3f2fd';border='#90caf9';
-            label+=`<br><span style="font-size:9px;">🕐${fmt(w.workStart)}–${fmt(w.workEnd)}</span>`;
-          }
-        }
-        if(isPassed){
-          // 締め切り後：タップ不可・薄く表示
-          return `<div style="
-            background:${w?bg:'#f0f0f0'};border:1.5px solid ${w?border:'#ddd'};border-radius:8px;
-            padding:6px 8px;font-size:12px;color:#999;
-            opacity:0.7;min-width:58px;text-align:center;line-height:1.4;">
-            ${label}
-          </div>`;
-        }
-        return `<button onclick="openWishDayModal('${pk}','${s.id}','${dk}')" style="
-          background:${bg};border:1.5px solid ${border};border-radius:8px;
-          padding:6px 8px;font-size:12px;color:${color};cursor:pointer;
-          font-weight:${w?'700':'400'};min-width:58px;text-align:center;line-height:1.4;
-          touch-action:manipulation;">
-          ${label}
-        </button>`;
-      }).join('')}
-    </div>`;
+    <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px;">
+      <span style="background:#ede7f6;color:#7b1fa2;border-radius:20px;padding:2px 9px;font-size:11px;font-weight:700;">🟣 有給</span>
+      <span style="background:#fde8e8;color:#c0392b;border-radius:20px;padding:2px 9px;font-size:11px;font-weight:700;">🔴 休み希望</span>
+      <span style="background:#e3f2fd;color:#1565c0;border-radius:20px;padding:2px 9px;font-size:11px;font-weight:700;">🕐 時間希望</span>
+      ${isPassed?`<span style="background:#fde8e8;color:#b71c1c;border-radius:20px;padding:2px 9px;font-size:11px;font-weight:700;">🔒 締切済</span>`:''}
+    </div>
+    ${buildMonthCal(m1Year,m1Month)}
+    ${buildMonthCal(m2Year,m2Month)}`;
 }
 
 // 希望入力モーダルを開く
