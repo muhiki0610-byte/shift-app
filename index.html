@@ -107,6 +107,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 .badge{display:inline-block;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap;}
 .badge-a{background:var(--green-lt);color:var(--green-dk);}
 .badge-b{background:#cce5ff;color:#004085;}
+.badge-c{background:#e8d5f5;color:#4a148c;}
 .badge-part{background:var(--yellow-lt);color:var(--yellow-dk);}
 .badge-busy{background:#ff6b2b;color:#fff;}
 .badge-sat{background:#e67e00;color:#fff;}
@@ -161,6 +162,8 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
   touch-action:manipulation;
 }
 .se-del:active{color:var(--red);}
+.se{border-bottom:1px solid #f0f0f0;}
+.se:last-of-type{border-bottom:none;}
 
 .add-day-btn{
   display:flex;align-items:center;justify-content:center;gap:6px;
@@ -592,9 +595,10 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
     <input type="text" id="staff-name-input" placeholder="名前" />
     <label>区分</label>
     <select id="staff-type-input">
-      <option value="A">常勤A（休日当番あり）</option>
-      <option value="B">常勤B（固定勤務・休日当番なし）</option>
-      <option value="part">非常勤</option>
+      <option value="A">常勤A（週休2日・休日当番あり・170h上限）</option>
+      <option value="B">常勤B（固定勤務・休日当番なし・無制限）</option>
+      <option value="C">常勤C（固定勤務・休日当番あり・無制限）</option>
+      <option value="part">非常勤（31h上限）</option>
     </select>
     <div style="margin-top:12px;display:flex;align-items:center;gap:10px;background:var(--yellow-lt);border-radius:var(--r-sm);padding:10px 12px;">
       <input type="checkbox" id="staff-sat-fixed" style="width:20px;height:20px;flex-shrink:0;" />
@@ -665,6 +669,19 @@ function calcNet(s,e,r){
   if(!s||!e)return 0;
   const[sh,sm]=s.split(':').map(Number),[eh,em]=e.split(':').map(Number);
   return Math.max(0,(eh*60+em)-(sh*60+sm)-(r||0))/60;
+}
+// 固定勤務スタッフ（B・C）か判定
+function isFixed(s){return s.type==='B'||s.type==='C';}
+// 休日当番対象か判定（A・C）
+function isDutyTarget(s){return s.type==='A'||s.type==='C';}
+// タイプラベル
+function typeLabel(s){return s.type==='A'?'常勤A':s.type==='B'?'常勤B':s.type==='C'?'常勤C':'非常勤';}
+// タイプバッジ色
+function typeBadgeStyle(s){
+  if(s.type==='A')return 'background:#d4edda;color:#155724';
+  if(s.type==='B')return 'background:#cce5ff;color:#004085';
+  if(s.type==='C')return 'background:#e8d5f5;color:#4a148c';
+  return 'background:#fff3cd;color:#856404';
 }
 
 function getBusyType(date){
@@ -816,7 +833,7 @@ function calcWeeklyOffStatus(){
   const pk=periodKey();
   const dates=getPeriodDates(currentYear,currentMonth);
   const sh=data.shifts[pk]||{};
-  const ft=data.staff.filter(s=>s.type==='A'||s.type==='B');
+  const ft=data.staff.filter(s=>s.type==='A'||s.type==='B'||s.type==='C');
   const res={};
   ft.forEach(s=>{res[s.id]={name:s.name,type:s.type,offDays:0};});
   dates.forEach(date=>{
@@ -847,7 +864,7 @@ function renderWeeklyOffPanel(){
   el.innerHTML=`<p style="font-size:12px;color:#666;margin-bottom:8px;">約${tw}週間 ｜ 目安: <strong>${req}日</strong>（週2日×${tw}週）</p>
     <div class="wos-grid">`
     +items.map(s=>{
-      if(s.type==='B')return`<div class="wos-item"><div class="wos-name">${s.name}</div><span class="wos-badge wos-ok">固定勤務</span></div>`;
+      if(s.type==='B'||s.type==='C')return`<div class="wos-item"><div class="wos-name">${s.name}</div><span class="wos-badge wos-ok">固定勤務</span></div>`;
       const ok=s.offDays>=req,near=s.offDays>=req-2;
       const cls=ok?'wos-ok':near?'wos-warn':'wos-ng';
       const lbl=ok?'✅ OK':near?'⚠ もう少し':'❌ 不足';
@@ -942,43 +959,88 @@ function renderShift(){
       // 休日行に直接「当番設定」ボタンを表示
       bodyHtml+=`<button class="add-day-btn" style="background:#fde8e8;border-color:#f5c6cb;color:#c0392b;" onclick="openDutyModal('${dk}','${pk}')">🔴 休日当番を設定</button>`;
     } else {
-      // 常勤B
-      const bStaff=data.staff.find(s=>s.type==='B');
-      if(bStaff){
+      // 固定勤務スタッフ（常勤B・C）
+      data.staff.filter(s=>isFixed(s)).forEach(bStaff=>{
         const bShift=shifts.find(s=>s.staffId===bStaff.id);
+        const bBadge=`<span style="font-size:10px;${typeBadgeStyle(bStaff)};border-radius:4px;padding:1px 5px;">${typeLabel(bStaff)}</span>`;
         if(bShift&&bShift.type==='off'){
-          bodyHtml+=`<div class="se se-off">😴 <span class="se-name">${bStaff.name}</span> 週休 <button class="se-del" onclick="deleteShiftById('${pk}','${dk}','${bStaff.id}')">×</button></div>`;
+          bodyHtml+=`<div class="se se-off" style="display:flex;align-items:center;gap:6px;">
+            <span style="font-size:18px;">😴</span>
+            <div style="flex:1;">${bBadge} <span class="se-name">${bStaff.name}</span><span style="font-size:11px;color:#888;margin-left:4px;">週休</span></div>
+            <button class="se-del" onclick="deleteShiftById('${pk}','${dk}','${bStaff.id}')">×</button>
+          </div>`;
         } else if(bShift&&bShift.type==='paid'){
           const ph=calcPaidHoursFromEntry(bShift,bStaff.id,dayType);
           const pl=paidLabel(bShift);
-          bodyHtml+=`<div class="se se-paid">🟣 <span class="se-name">${bStaff.name}</span><span class="se-time">${pl}</span><span class="se-hrs">${ph.toFixed(1)}h</span><button class="se-del" onclick="deleteShiftById('${pk}','${dk}','${bStaff.id}')">×</button></div>`;
+          bodyHtml+=`<div class="se se-paid" style="display:flex;align-items:center;gap:6px;">
+            <span style="font-size:18px;">🟣</span>
+            <div style="flex:1;">${bBadge} <span class="se-name">${bStaff.name}</span>
+            <div style="font-size:11px;color:#7b1fa2;margin-top:2px;">${pl} / ${ph.toFixed(1)}h</div></div>
+            <button class="se-del" onclick="deleteShiftById('${pk}','${dk}','${bStaff.id}')">×</button>
+          </div>`;
         } else {
           const bs=bShift?bShift.start:'08:30';
           const be=bShift?bShift.end:(dayType==='saturday'?'16:00':'18:30');
           const br=bShift?(bShift.rest!==undefined?bShift.rest:60):60;
           const bn=calcNet(bs,be,br);
-          bodyHtml+=`<div class="se se-b">🔒 <span class="se-name">${bStaff.name}</span><span class="se-time">${fmt(bs)}–${fmt(be)}</span><span class="se-hrs">実${bn.toFixed(1)}h</span>${bShift?`<button class="se-del" onclick="deleteShiftById('${pk}','${dk}','${bStaff.id}')">×</button>`:''}</div>`;
+          bodyHtml+=`<div class="se se-b" style="display:flex;align-items:center;gap:6px;">
+            <span style="font-size:18px;">🟢</span>
+            <div style="flex:1;">${bBadge} <span class="se-name">${bStaff.name}</span>
+            <div style="font-size:11px;color:#555;margin-top:2px;">${fmt(bs)}–${fmt(be)} / 実${bn.toFixed(1)}h</div></div>
+            ${bShift?`<button class="se-del" onclick="deleteShiftById('${pk}','${dk}','${bStaff.id}')">×</button>`:''}
+          </div>`;
         }
-      }
+      });
 
-      // 常勤A・非常勤
-      shifts.filter(s=>{const st=data.staff.find(t=>t.id===s.staffId);return st&&st.type!=='B';})
-        .forEach(s=>{
-          const st=data.staff.find(t=>t.id===s.staffId);
-          const nm=st?st.name:'?';
-          const idx=shifts.indexOf(s);
-          const cls=st?(st.type==='A'?'se-a':'se-part'):'';
-          if(s.type==='off'){
-            bodyHtml+=`<div class="se se-off">😴 <span class="se-name">${nm}</span> 週休<button class="se-del" onclick="deleteShiftByIdx('${pk}','${dk}',${idx})">×</button></div>`;
-          } else if(s.type==='paid'){
-            const ph=calcPaidHoursFromEntry(s,s.staffId,dayType);
-            const pl=paidLabel(s);
-            bodyHtml+=`<div class="se se-paid">🟣 <span class="se-name">${nm}</span><span class="se-time">${pl}</span><span class="se-hrs">${ph.toFixed(1)}h</span><button class="se-del" onclick="deleteShiftByIdx('${pk}','${dk}',${idx})">×</button></div>`;
-          } else {
-            const net=calcNet(s.start,s.end,s.rest!==undefined?s.rest:data.defaultRest);
-            bodyHtml+=`<div class="se ${cls}"><span class="se-name">${nm}</span><span class="se-time">${fmt(s.start)}–${fmt(s.end)}</span><span class="se-hrs">実${net.toFixed(1)}h</span><button class="se-del" onclick="deleteShiftByIdx('${pk}','${dk}',${idx})">×</button></div>`;
-          }
-        });
+      // 常勤A・非常勤 → 全スタッフをカード形式で表示
+      // まず登録済みのエントリを表示、未登録スタッフも「未設定」で表示
+      const nonBStaff=data.staff.filter(s=>!isFixed(s));
+      nonBStaff.forEach(st=>{
+        const s=shifts.find(e=>e.staffId===st.id);
+        const idx=s?shifts.indexOf(s):-1;
+        const cls=st.type==='A'?'se-a':'se-part';
+        const typeLabel=st.type==='A'?'常勤A':st.type==='B'?'常勤B':'非常勤';
+        const typeBadge=st.type==='A'
+          ?`<span style="font-size:10px;background:#d4edda;color:#155724;border-radius:4px;padding:1px 5px;">${typeLabel}</span>`
+          :`<span style="font-size:10px;background:#fff3cd;color:#856404;border-radius:4px;padding:1px 5px;">${typeLabel}</span>`;
+        if(!s){
+          // 未設定
+          bodyHtml+=`<div class="se" style="opacity:.45;border:1.5px dashed #ccc;">
+            ${typeBadge} <span class="se-name">${st.name}</span>
+            <span style="margin-left:auto;font-size:11px;color:#aaa;">未設定</span>
+          </div>`;
+        } else if(s.type==='off'){
+          bodyHtml+=`<div class="se se-off" style="display:flex;align-items:center;gap:6px;">
+            <span style="font-size:18px;">😴</span>
+            <div style="flex:1;">
+              ${typeBadge} <span class="se-name">${st.name}</span>
+              <span style="font-size:11px;color:#888;margin-left:4px;">週休</span>
+            </div>
+            <button class="se-del" onclick="deleteShiftByIdx('${pk}','${dk}',${idx})">×</button>
+          </div>`;
+        } else if(s.type==='paid'){
+          const ph=calcPaidHoursFromEntry(s,st.id,dayType);
+          const pl=paidLabel(s);
+          bodyHtml+=`<div class="se se-paid" style="display:flex;align-items:center;gap:6px;">
+            <span style="font-size:18px;">🟣</span>
+            <div style="flex:1;">
+              ${typeBadge} <span class="se-name">${st.name}</span>
+              <div style="font-size:11px;color:#7b1fa2;margin-top:2px;">${pl} / ${ph.toFixed(1)}h</div>
+            </div>
+            <button class="se-del" onclick="deleteShiftByIdx('${pk}','${dk}',${idx})">×</button>
+          </div>`;
+        } else {
+          const net=calcNet(s.start,s.end,s.rest!==undefined?s.rest:data.defaultRest);
+          bodyHtml+=`<div class="se ${cls}" style="display:flex;align-items:center;gap:6px;">
+            <span style="font-size:18px;">🟢</span>
+            <div style="flex:1;">
+              ${typeBadge} <span class="se-name">${st.name}</span>
+              <div style="font-size:11px;color:#555;margin-top:2px;">${fmt(s.start)}–${fmt(s.end)} / 実${net.toFixed(1)}h</div>
+            </div>
+            <button class="se-del" onclick="deleteShiftByIdx('${pk}','${dk}',${idx})">×</button>
+          </div>`;
+        }
+      });
 
       // 第2・4・5土曜 常勤チェック
       if(keySat){
@@ -1101,8 +1163,7 @@ function openShiftModal(dk,pk,dayType,busyType){
   [...data.staff].sort((a,b)=>isWed&&a.type==='part'&&b.type!=='part'?-1:isWed&&b.type==='part'&&a.type!=='part'?1:0)
     .forEach(s=>{
       const opt=document.createElement('option');opt.value=s.id;
-      const tl=s.type==='A'?'常勤A':s.type==='B'?'常勤B':'非常勤';
-      opt.textContent=`${s.name}（${tl}）`;sel.appendChild(opt);
+      opt.textContent=`${s.name}（${typeLabel(s)}）`;sel.appendChild(opt);
     });
 
   document.getElementById('modal-entry-type').value='work';
@@ -1190,12 +1251,13 @@ function renderDutySet(){
       </div>`;
     }).join('');
 
-  const staffA=data.staff.filter(s=>s.type==='A');
-  document.getElementById('duty-check-list').innerHTML=!staffA.length?'<p style="color:#999;">常勤Aスタッフがいません</p>':
-    staffA.map(s=>{
+  const dutyStaff=data.staff.filter(s=>isDutyTarget(s));
+  document.getElementById('duty-check-list').innerHTML=!dutyStaff.length?'<p style="color:#999;">当番対象スタッフがいません</p>':
+    dutyStaff.map(s=>{
       const cnt=holidays.filter(d=>{const e=(data.duties[pk]||{})[dateKey(d)];return e&&e.staffId===s.id;}).length;
       const ok=cnt>=1;
       return `<div style="display:flex;align-items:center;padding:10px;border-bottom:1px solid #f0f0f0;gap:10px;">
+        <span style="font-size:10px;${typeBadgeStyle(s)};border-radius:4px;padding:1px 5px;flex-shrink:0;">${typeLabel(s)}</span>
         <span style="font-weight:700;flex:1;">${s.name}</span>
         <span class="badge" style="background:${ok?'var(--green-lt)':'var(--red-lt)'};color:${ok?'var(--green-dk)':'var(--red-dk)'};">${cnt}回</span>
         <span>${ok?'✅ OK':'⚠️ 不足'}</span>
@@ -1210,7 +1272,7 @@ function openDutyModal(dk,pk,fromPage){
   document.getElementById('duty-modal-title').textContent=`休日当番設定（${dk}）`;
   const sel=document.getElementById('duty-modal-staff');
   sel.innerHTML='<option value="">-- 未設定 --</option>';
-  data.staff.filter(s=>s.type==='A').forEach(s=>{const o=document.createElement('option');o.value=s.id;o.textContent=s.name;sel.appendChild(o);});
+  data.staff.filter(s=>isDutyTarget(s)).forEach(s=>{const o=document.createElement('option');o.value=s.id;o.textContent=`${s.name}（${typeLabel(s)}）`;sel.appendChild(o);});
   const entry=(data.duties[pk]||{})[dk];
   if(entry&&entry.staffId){
     sel.value=entry.staffId;
@@ -1383,17 +1445,16 @@ function renderSummary(){
         if(e&&e.staffId===s.id)wh+=calcNet(e.start,e.end,e.rest!==undefined?e.rest:60);
       });
     }
-    const limit=s.type==='part'?31:170;
-    const over=wh>limit;
-    const tl=s.type==='A'?'常勤A':s.type==='B'?'常勤B':'非常勤';
+    const limit=s.type==='part'?31:(isFixed(s)?null:170);
+    const over=limit!==null&&wh>limit;
     const tr=document.createElement('tr');
-    tr.innerHTML=`<td>${s.name}</td><td>${tl}</td>
+    tr.innerHTML=`<td>${s.name}</td><td>${typeLabel(s)}</td>
       <td class="${over?'over':'ok'}">${wh.toFixed(1)}h</td>
       <td>${pd>0?`<span style="color:var(--purple);font-weight:700;">${pd}日</span>`:'–'}</td>
       <td>${od>0?`<span style="color:var(--gray);">${od}日</span>`:'–'}</td>
-      <td>${s.type==='B'?'全土曜':sc+'回'}</td>
+      <td>${isFixed(s)?'全土曜':sc+'回'}</td>
       <td>${limit}h</td>
-      <td>${over?'⚠️超過':'✅OK'}</td>`;
+      <td>${limit===null?'–':over?'⚠️超過':'✅OK'}</td>`;
     tbody.appendChild(tr);
   });
 }
@@ -1446,12 +1507,11 @@ function renderWishArea(pk,pkW){
   const workDates=dates.filter(d=>getDayType(d)!=='holiday');
   const staffW=pkW[s.id]||{};
 
-  const bc=s.type==='A'?'badge-a':s.type==='B'?'badge-b':'badge-part';
-  const bl=s.type==='A'?'常勤A':s.type==='B'?'常勤B':'非常勤';
+  const bc=s.type==='A'?'badge-a':s.type==='B'?'badge-b':s.type==='C'?'badge-c':'badge-part';
 
   el.innerHTML=`
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-      <span class="badge ${bc}">${bl}</span>
+      <span class="badge ${bc}">${typeLabel(s)}</span>
       <strong style="font-size:15px;">${s.name}</strong>
       <span style="font-size:11px;color:#888;margin-left:auto;">
         希望: ${Object.keys(staffW).length}日
@@ -1597,11 +1657,10 @@ function autoCreateShift(){
   const log=[];
 
   const staffA=data.staff.filter(s=>s.type==='A');
-  const staffB=data.staff.find(s=>s.type==='B');
+  const staffFixed=data.staff.filter(s=>isFixed(s)); // B+C
   const staffPart=data.staff.filter(s=>s.type==='part');
 
-  // --- 常勤B：全平日・土曜に固定出勤（週休なし設定なのでスキップ） ---
-  // 常勤Bは自動では何も登録しない（デフォルト出勤）
+  // --- 常勤B・C：全平日・土曜に固定出勤（自動では何も登録しない＝デフォルト出勤） ---
 
   // --- 常勤A：土曜固定出勤フラグ確認 ---
   // satFixed:true のスタッフは全土曜に必ず出勤
