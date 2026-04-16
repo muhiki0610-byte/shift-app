@@ -1214,72 +1214,59 @@ function renderShiftCal(){
     const weekEnd=new Date(lastDate);
     weekEnd.setDate(lastDate.getDate()+(6-lastDate.getDay()));
 
-    let rowsHtml='';
+    // 全日をフラットに並べる（weekStart〜weekEnd）
+    let cellsHtml='';
+    const today=new Date();
     const cur=new Date(weekStart);
     while(cur<=weekEnd){
-      // 1行（7セル）生成
-      let rowHtml='';
-      for(let c=0;c<7;c++){
-        const d=new Date(cur);
-        const dk=dateKey(d);
-        const dow=d.getDay();
-        const inPeriod=periodSet.has(dk);
+      const d=new Date(cur);
+      const dk=dateKey(d);
+      const dow=d.getDay();
+      const inPeriod=periodSet.has(dk);
 
-        if(!inPeriod){
-          rowHtml+=`<div></div>`;
-          cur.setDate(cur.getDate()+1);
-          continue;
-        }
-
-        const dayType=getDayType(d);
-        const isHol=dayType==='holiday';
-        const shifts=(data.shifts[pk]||{})[dk]||[];
-        const duties=(data.duties[pk]||{})[dk];
-        const today=new Date();
-        const isToday=d.getFullYear()===today.getFullYear()&&d.getMonth()===today.getMonth()&&d.getDate()===today.getDate();
-
-        const dateColor=dow===0||isHol?'#e53935':dow===6?'#1565c0':'#333';
-        let cellBg=isHol?'#fff3cd':dow===6?'#fffde7':'#fff';
-        if(isToday) cellBg='#e3f2fd';
-        const cov=(!isHol)?checkDayCoverage(dk,pk,dayType):null;
-        let cellBorder=isToday?'2px solid #1565c0':'1.5px solid #e0e0e0';
-        let covBadge='';
-        if(cov&&cov.level==='error'){cellBg='#fde8e8';cellBorder='2px solid #e53935';covBadge=`<div style="font-size:8px;color:#b71c1c;font-weight:700;">🔴空き</div>`;}
-        else if(cov&&cov.level==='warn'){if(!isToday)cellBg='#fff8e1';cellBorder='2px solid #ffc107';covBadge=`<div style="font-size:8px;color:#856404;font-weight:700;">⚠️1名</div>`;}
-
-        let staffRows='';
-        if(isHol){
-          if(duties&&duties.staffId){
-            const st=data.staff.find(s=>s.id===duties.staffId);
-            staffRows=`<div style="font-size:9px;background:#d4edda;color:#155724;border-radius:3px;padding:1px 3px;margin-top:2px;white-space:nowrap;">🟢${(st?st.name:'?').slice(0,3)}</div>`;
-          } else {
-            staffRows=`<div style="font-size:9px;color:#ccc;margin-top:2px;">未設定</div>`;
-          }
-        } else {
-          const isSat=dayType==='saturday';
-          staffRows=data.staff.map(s=>{
-            const e=shifts.find(e=>e.staffId===s.id);
-            if(e&&(e.type==='off'||e.type==='paid')) return '';
-            const defStart=isSat?(s.prefStartSat||s.prefStart||'08:30'):(s.prefStart||'08:30');
-            const defEnd=isSat?(s.prefEndSat||'16:00'):(s.prefEnd||'18:30');
-            let timeStr='';
-            if(e&&e.type==='work'){
-              if(fmt(e.start)!==defStart||fmt(e.end)!==defEnd)
-                timeStr=`<span style="font-size:8px;color:#1565c0;"> ${fmt(e.start)}〜</span>`;
-            }
-            return `<div style="font-size:9px;background:#d4edda;color:#155724;border-radius:3px;padding:1px 3px;margin-top:1px;white-space:nowrap;">🟢${s.name.slice(0,3)}${timeStr}</div>`;
-          }).join('');
-        }
-
-        rowHtml+=`<div onclick="jumpToDay('${dk}')" style="min-height:60px;background:${cellBg};border:${cellBorder};border-radius:6px;padding:3px;cursor:pointer;touch-action:manipulation;overflow:hidden;">
-          <div style="font-size:12px;font-weight:700;color:${dateColor};line-height:1.2;">${d.getDate()}${isHol?'<span style="font-size:8px;color:#e53935;">祝</span>':''}</div>
-          ${covBadge}${staffRows}
-        </div>`;
+      if(!inPeriod){
+        cellsHtml+=`<div></div>`;
         cur.setDate(cur.getDate()+1);
         continue;
       }
-      // curは既に次の週に進んでいるのでスキップ
-      rowsHtml+=`<div style="display:contents;">${rowHtml}</div>`;
+
+      const dayType=getDayType(d);
+      const isHol=dayType==='holiday';
+      const shifts=(data.shifts[pk]||{})[dk]||[];
+      const duties=(data.duties[pk]||{})[dk];
+      const isToday=d.getFullYear()===today.getFullYear()&&d.getMonth()===today.getMonth()&&d.getDate()===today.getDate();
+      const dateColor=dow===0||isHol?'#e53935':dow===6?'#1565c0':'#333';
+      let cellBg=isHol?'#fff3cd':dow===6?'#fffde7':'#fff';
+      if(isToday)cellBg='#e3f2fd';
+      const cov=(!isHol)?checkDayCoverage(dk,pk,dayType):null;
+      let cellBorder=isToday?'2px solid #1565c0':'1.5px solid #e0e0e0';
+      let covBadge='';
+      if(cov&&cov.level==='error'){cellBg='#fde8e8';cellBorder='2px solid #e53935';covBadge=`<div style="font-size:8px;color:#b71c1c;font-weight:700;">🔴空き</div>`;}
+      else if(cov&&cov.level==='warn'){if(!isToday)cellBg='#fff8e1';cellBorder='2px solid #ffc107';covBadge=`<div style="font-size:8px;color:#856404;font-weight:700;">⚠️1名</div>`;}
+
+      let staffRows='';
+      if(isHol){
+        const st=duties&&duties.staffId?data.staff.find(s=>s.id===duties.staffId):null;
+        staffRows=st?`<div style="font-size:9px;background:#d4edda;color:#155724;border-radius:3px;padding:1px 3px;margin-top:2px;white-space:nowrap;">🟢${st.name.slice(0,3)}</div>`:`<div style="font-size:9px;color:#ccc;margin-top:2px;">未設定</div>`;
+      } else {
+        const isSat=dayType==='saturday';
+        staffRows=data.staff.map(s=>{
+          const e=shifts.find(e=>e.staffId===s.id);
+          if(e&&(e.type==='off'||e.type==='paid'))return '';
+          const defStart=isSat?(s.prefStartSat||s.prefStart||'08:30'):(s.prefStart||'08:30');
+          const defEnd=isSat?(s.prefEndSat||'16:00'):(s.prefEnd||'18:30');
+          let timeStr='';
+          if(e&&e.type==='work'&&(fmt(e.start)!==defStart||fmt(e.end)!==defEnd))
+            timeStr=`<span style="font-size:8px;color:#1565c0;"> ${fmt(e.start)}〜</span>`;
+          return `<div style="font-size:9px;background:#d4edda;color:#155724;border-radius:3px;padding:1px 3px;margin-top:1px;white-space:nowrap;">🟢${s.name.slice(0,3)}${timeStr}</div>`;
+        }).join('');
+      }
+
+      cellsHtml+=`<div onclick="jumpToDay('${dk}')" style="min-height:60px;background:${cellBg};border:${cellBorder};border-radius:6px;padding:3px;cursor:pointer;touch-action:manipulation;overflow:hidden;-webkit-tap-highlight-color:rgba(0,0,0,0.08);">
+        <div style="font-size:12px;font-weight:700;color:${dateColor};line-height:1.2;">${d.getDate()}${isHol?'<span style="font-size:8px;color:#e53935;">祝</span>':''}</div>
+        ${covBadge}${staffRows}
+      </div>`;
+      cur.setDate(cur.getDate()+1);
     }
 
     return `
@@ -1287,82 +1274,7 @@ function renderShiftCal(){
       <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px;">
         ${['日','月','火','水','木','金','土'].map((d,i)=>`<div style="text-align:center;font-size:10px;font-weight:700;padding:3px 0;color:${i===0?'#e53935':i===6?'#1565c0':'#888'};">${d}</div>`).join('')}
       </div>
-      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;">${rowsHtml}</div>`;
-
-    // ダミーのfor文残骸を回避するため以下は使わない
-    const dummyUnreachable=false;
-    for(let day=1;day<=daysInMonth;day++){
-      const d=new Date(year,month,day);
-      const dk=dateKey(d);
-      const dow=d.getDay();
-      const inPeriod=periodSet.has(dk);
-      const dayType=getDayType(d);
-      const isHol=dayType==='holiday';
-      const shifts2=(data.shifts[pk]||{})[dk]||[];
-      const duties2=(data.duties[pk]||{})[dk];
-      const today2=new Date();
-      const isToday2=false;
-      if(!inPeriod) continue;
-
-      const dateColor=dow===0||isHol?'#e53935':dow===6?'#1565c0':'#333';
-      let cellBg=isHol?'#fff3cd':dow===6?'#fffde7':'#fff';
-      if(isToday) cellBg='#e3f2fd';
-
-      // 営業カバーチェック
-      const cov=(!isHol)?checkDayCoverage(dk,pk,dayType):null;
-      let cellBorder=isToday?'2px solid #1565c0':'1.5px solid #e0e0e0';
-      let covBadge='';
-      if(cov&&cov.level==='error'){
-        cellBg='#fde8e8'; cellBorder='2px solid #e53935';
-        covBadge=`<div style="font-size:8px;color:#b71c1c;font-weight:700;">🔴空き</div>`;
-      } else if(cov&&cov.level==='warn'){
-        if(!isToday) cellBg='#fff8e1';
-        cellBorder='2px solid #ffc107';
-        covBadge=`<div style="font-size:8px;color:#856404;font-weight:700;">⚠️1名</div>`;
-      }
-
-      // スタッフ状態をコンパクトに表示
-      let staffRows='';
-      if(isHol){
-        if(duties&&duties.staffId){
-          const st=data.staff.find(s=>s.id===duties.staffId);
-          const lastName=st?st.name.slice(0,3):'?';
-          staffRows=`<div style="font-size:9px;background:#d4edda;color:#155724;border-radius:3px;padding:1px 3px;margin-top:2px;white-space:nowrap;">🟢${lastName}</div>`;
-        } else {
-          staffRows=`<div style="font-size:9px;color:#ccc;margin-top:2px;">未設定</div>`;
-        }
-      } else {
-        // 出勤者のみ表示（休み・有給は表示しない）、苗字のみ
-        // 個人デフォルトと異なる時間のときだけ時間を併記
-        staffRows=data.staff.map(s=>{
-          const e=shifts.find(e=>e.staffId===s.id);
-          const isOff=e&&(e.type==='off'||e.type==='paid');
-          if(isOff) return '';
-          const lastName=s.name.slice(0,3);
-          // 個人デフォルト時間を取得
-          const isSat=dayType==='saturday';
-          const defStart=isSat?(s.prefStartSat||s.prefStart||'08:30'):(s.prefStart||'08:30');
-          const defEnd  =isSat?(s.prefEndSat||'16:00'):(s.prefEnd||'18:30');
-          let timeStr='';
-          if(e&&e.type==='work'){
-            const nonDefault=(fmt(e.start)!==defStart)||(fmt(e.end)!==defEnd);
-            if(nonDefault) timeStr=`<span style="font-size:8px;color:#1565c0;"> ${fmt(e.start)}〜</span>`;
-          }
-          return `<div style="font-size:9px;background:#d4edda;color:#155724;border-radius:3px;padding:1px 3px;margin-top:1px;white-space:nowrap;">🟢${lastName}${timeStr}</div>`;
-        }).join('');
-      }
-
-      cellsHtml+=`<div onclick="jumpToDay('${dk}')" style="min-height:64px;background:${cellBg};border:${cellBorder};border-radius:6px;
-        padding:3px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0.08);overflow:hidden;">
-        <div style="font-size:12px;font-weight:700;color:${dateColor};line-height:1.2;">${day}${isHol?'<span style="font-size:8px;color:#e53935;">祝</span>':''}</div>
-        ${covBadge}
-        ${staffRows}
-      </div>`;
-    }
-
-    return `
-      <div style="font-size:13px;font-weight:700;color:#333;margin:12px 0 6px;">${year}年${month+1}月</div>
-      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px;">
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;">${cellsHtml}</div>`;
   }
 
   // 期間は (currentMonth-1)月21日 〜 currentMonth月20日
