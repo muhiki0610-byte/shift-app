@@ -409,7 +409,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
   </div>
 
   <!-- 自動作成ボタン -->
-  <button class="btn btn-success btn-block" style="font-size:16px;padding:16px;" onclick="autoCreateShift()">
+  <button class="btn btn-success btn-block" style="font-size:18px;padding:20px;border-radius:12px;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0.1);cursor:pointer;margin:8px 0;" ontouchend="event.preventDefault();autoCreateShift();" onclick="autoCreateShift()">
     ✨ 自動シフト作成
   </button>
 
@@ -1641,7 +1641,35 @@ function clearWishDay(){
 // 自動シフト生成エンジン
 // ====================================================================
 function autoCreateShift(){
-  if(!confirm('現在のシフトを上書きして自動作成します。よろしいですか？'))return;
+  // スマホ対応：カスタム確認ダイアログ
+  showConfirm('現在のシフトを上書きして自動作成します。\nよろしいですか？', ()=>{
+    _doAutoCreate();
+  });
+}
+function showConfirm(msg, onOk){
+  let ov=document.getElementById('confirm-ov');
+  if(!ov){
+    ov=document.createElement('div');
+    ov.id='confirm-ov';
+    ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+    ov.innerHTML=`<div style="background:#fff;border-radius:16px;padding:24px;max-width:320px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,.2);">
+      <p id="confirm-msg" style="font-size:15px;line-height:1.6;margin-bottom:20px;white-space:pre-line;"></p>
+      <div style="display:flex;gap:10px;">
+        <button id="confirm-cancel" style="flex:1;padding:14px;border:2px solid #ddd;border-radius:10px;background:#fff;font-size:15px;cursor:pointer;touch-action:manipulation;" ontouchend="event.preventDefault();document.getElementById('confirm-ov').remove();" onclick="document.getElementById('confirm-ov').remove()">キャンセル</button>
+        <button id="confirm-ok" style="flex:1;padding:14px;border:none;border-radius:10px;background:#28a745;color:#fff;font-size:15px;font-weight:700;cursor:pointer;touch-action:manipulation;">OK</button>
+      </div>
+    </div>`;
+    document.body.appendChild(ov);
+  }
+  document.getElementById('confirm-msg').textContent=msg;
+  const okBtn=document.getElementById('confirm-ok');
+  const newOk=okBtn.cloneNode(true);
+  okBtn.parentNode.replaceChild(newOk,okBtn);
+  const handler=()=>{ov.remove();onOk();};
+  newOk.addEventListener('touchend',e=>{e.preventDefault();handler();});
+  newOk.addEventListener('click',handler);
+}
+function _doAutoCreate(){
 
   const pk=periodKey();
   const dates=getPeriodDates(currentYear,currentMonth);
@@ -1857,8 +1885,8 @@ function autoCreateShift(){
     `<span style="color:#555;">${l}</span>`
   ).join('<br>');
 
-  alert('✨ 自動シフト作成が完了しました！\nシフトタブで確認してください。');
   showPage('shift',document.querySelector('nav button'));
+  showConfirm('✨ 自動シフト作成が完了しました！\nシフトタブで確認してください。',()=>{});
 }
 
 function addShift(pk,date,entry){
