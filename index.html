@@ -294,20 +294,29 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
     </div>
   </div>
 
+  <!-- 希望入力ショートカット -->
+  <div class="card">
+    <div class="card-hd">📝 希望入力（希望休・有給）</div>
+    <div class="card-bd" style="padding:10px 12px;">
+      <p style="font-size:12px;color:#888;margin-bottom:8px;">自分の名前をタップして希望を入力してください</p>
+      <div id="wish-shortcut-btns" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+    </div>
+  </div>
+
   <!-- 週休状況（折りたたみ） -->
   <div class="card">
-    <div class="collapsible-hd open" onclick="toggleSection(this)">
+    <div class="collapsible-hd" onclick="toggleSection(this)">
       📊 週休2日 取得状況 <span class="chev">▾</span>
     </div>
-    <div class="collapsible-bd open" id="weekly-off-panel"></div>
+    <div class="collapsible-bd" id="weekly-off-panel"></div>
   </div>
 
   <!-- 土曜バランス（折りたたみ） -->
   <div class="card">
-    <div class="collapsible-hd open" onclick="toggleSection(this)">
+    <div class="collapsible-hd" onclick="toggleSection(this)">
       🗓 土曜出勤バランス（常勤A） <span class="chev">▾</span>
     </div>
-    <div class="collapsible-bd open" id="sat-balance"></div>
+    <div class="collapsible-bd" id="sat-balance"></div>
   </div>
 
   <!-- シフトカード一覧 -->
@@ -374,6 +383,40 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
   </div>
 </div>
 
+<!-- ===== ページ: 自動作成 ===== -->
+<div id="page-auto" class="page">
+  <div class="month-bar">
+    <button class="mbtn" onclick="changeMonth(-1)">‹</button>
+    <span id="auto-month-label">--</span>
+    <button class="mbtn" onclick="changeMonth(1)">›</button>
+  </div>
+
+  <div class="alert alert-info">
+    希望を入力してから「✨ 自動シフト作成」を実行してください。<br>
+    既存のシフトは上書きされます。
+  </div>
+
+  <!-- スタッフ選択タブ -->
+  <div class="card">
+    <div class="card-hd">📝 希望入力（スタッフを選んでください）</div>
+    <div class="card-bd" style="padding:8px;">
+      <div id="wish-staff-tabs" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;"></div>
+      <div id="wish-input-area"></div>
+    </div>
+  </div>
+
+  <!-- 自動作成ボタン -->
+  <button class="btn btn-success btn-block" style="font-size:16px;padding:16px;" onclick="autoCreateShift()">
+    ✨ 自動シフト作成
+  </button>
+
+  <!-- 結果ログ -->
+  <div class="card" id="auto-result-card" style="display:none;">
+    <div class="card-hd">📋 作成結果</div>
+    <div class="card-bd" id="auto-result-log" style="font-size:12px;line-height:2;"></div>
+  </div>
+</div>
+
 <!-- ===== ページ: 集計 ===== -->
 <div id="page-summary" class="page">
   <div class="month-bar">
@@ -406,6 +449,9 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
   <button class="active" onclick="showPage('shift',this)">
     <span class="nav-ico">📅</span>シフト
   </button>
+  <button onclick="showPage('auto',this)">
+    <span class="nav-ico">✨</span>自動作成
+  </button>
   <button onclick="showPage('duty-set',this)">
     <span class="nav-ico">🗓</span>当番
   </button>
@@ -416,6 +462,52 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
     <span class="nav-ico">📊</span>集計
   </button>
 </nav>
+
+<!-- ===== モーダル: 希望入力 ===== -->
+<div class="modal-ov" id="wish-day-modal">
+  <div class="modal">
+    <div class="modal-grip"></div>
+    <h2 id="wish-day-modal-title">希望入力</h2>
+
+    <label>希望の種類</label>
+    <select id="wish-type-sel" onchange="onWishTypeChange()">
+      <option value="none">希望なし（通常出勤）</option>
+      <option value="off">😴 希望休（週休扱い）</option>
+      <option value="paid">🟣 有給希望</option>
+    </select>
+
+    <!-- 有給詳細 -->
+    <div id="wish-paid-detail" style="display:none;">
+      <label>有給の種類</label>
+      <select id="wish-paid-type" onchange="onWishPaidTypeChange()">
+        <option value="full">全日有給</option>
+        <option value="half">半日有給（4時間）</option>
+        <option value="custom">時間指定有給</option>
+      </select>
+
+      <div id="wish-paid-half-row" style="display:none;margin-top:8px;">
+        <label>午前 / 午後</label>
+        <select id="wish-paid-ampm">
+          <option value="am">午前（前半4時間）</option>
+          <option value="pm">午後（後半4時間）</option>
+        </select>
+      </div>
+
+      <div id="wish-paid-custom-row" style="display:none;margin-top:8px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div><label>開始時間</label><input type="time" id="wish-paid-cstart" value="08:30"/></div>
+          <div><label>終了時間</label><input type="time" id="wish-paid-cend"   value="12:30"/></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-foot">
+      <button class="btn btn-outline" onclick="closeModal('wish-day-modal')">キャンセル</button>
+      <button class="btn btn-danger btn-sm" onclick="clearWishDay()">クリア</button>
+      <button class="btn btn-primary" onclick="saveWishDay()">✅ 保存</button>
+    </div>
+  </div>
+</div>
 
 <!-- ===== モーダル: シフト追加 ===== -->
 <div class="modal-ov" id="shift-modal">
@@ -491,6 +583,10 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
       <option value="B">常勤B（固定勤務・休日当番なし）</option>
       <option value="part">非常勤</option>
     </select>
+    <div style="margin-top:12px;display:flex;align-items:center;gap:10px;background:var(--yellow-lt);border-radius:var(--r-sm);padding:10px 12px;">
+      <input type="checkbox" id="staff-sat-fixed" style="width:20px;height:20px;flex-shrink:0;" />
+      <label style="margin:0;font-size:13px;color:#856404;font-weight:700;">🗓 土曜日は毎週固定出勤（常勤Aのみ）</label>
+    </div>
     <div class="modal-foot">
       <button class="btn btn-outline" onclick="closeModal('staff-modal')">キャンセル</button>
       <button class="btn btn-primary" onclick="saveStaff()">💾 保存</button>
@@ -749,7 +845,40 @@ function renderWeeklyOffPanel(){
 // ====================================================================
 // シフト表（カード形式）
 // ====================================================================
+function renderWishShortcuts(){
+  const pk=periodKey();
+  const wishes=loadWishes();
+  const pkW=wishes[pk]||{};
+  const el=document.getElementById('wish-shortcut-btns');
+  if(!el)return;
+  el.innerHTML=data.staff.map(s=>{
+    const bc=s.type==='A'?'#d4edda':s.type==='B'?'#cce5ff':'#fff3cd';
+    const tc=s.type==='A'?'#155724':s.type==='B'?'#004085':'#856404';
+    const cnt=Object.keys(pkW[s.id]||{}).length;
+    return `<button onclick="openWishForStaff('${s.id}')" style="
+      display:flex;align-items:center;gap:6px;
+      background:${bc};color:${tc};
+      border:2px solid ${tc}33;border-radius:20px;
+      padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;
+      touch-action:manipulation;">
+      ${s.name}
+      ${cnt>0
+        ?`<span style="background:var(--red);color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;">${cnt}件</span>`
+        :`<span style="background:#fff;color:#aaa;border-radius:10px;padding:1px 7px;font-size:11px;border:1px solid #ddd;">未入力</span>`
+      }
+    </button>`;
+  }).join('');
+}
+
+function openWishForStaff(staffId){
+  wishActiveStaff=staffId;
+  // 自動作成タブに切り替えて希望入力を開く
+  const btn=document.querySelectorAll('nav button')[1]; // 自動作成タブ
+  showPage('auto',btn);
+}
+
 function renderShift(){
+  renderWishShortcuts();
   renderWeeklyOffPanel();
   renderSatBalance('sat-balance');
 
@@ -797,6 +926,8 @@ function renderShift(){
       } else {
         bodyHtml=`<p style="color:#ccc;font-size:12px;padding:4px 0;">当番未設定</p>`;
       }
+      // 休日行に直接「当番設定」ボタンを表示
+      bodyHtml+=`<button class="add-day-btn" style="background:#fde8e8;border-color:#f5c6cb;color:#c0392b;" onclick="openDutyModal('${dk}','${pk}')">🔴 休日当番を設定</button>`;
     } else {
       // 常勤B
       const bStaff=data.staff.find(s=>s.type==='B');
@@ -1059,9 +1190,10 @@ function renderDutySet(){
     }).join('');
 }
 
-function openDutyModal(dk,pk){
+function openDutyModal(dk,pk,fromPage){
   dutyModalDk=dk;
   document.getElementById('duty-modal')._pk=pk;
+  document.getElementById('duty-modal')._fromPage=fromPage||activePage;
   document.getElementById('duty-modal-title').textContent=`休日当番設定（${dk}）`;
   const sel=document.getElementById('duty-modal-staff');
   sel.innerHTML='<option value="">-- 未設定 --</option>';
@@ -1083,6 +1215,7 @@ function openDutyModal(dk,pk){
 }
 function saveDutyEntry(){
   const pk=document.getElementById('duty-modal')._pk;
+  const fromPage=document.getElementById('duty-modal')._fromPage||'duty-set';
   const staffId=document.getElementById('duty-modal-staff').value;
   const s=document.getElementById('duty-modal-start').value;
   const e=document.getElementById('duty-modal-end').value;
@@ -1091,13 +1224,18 @@ function saveDutyEntry(){
   if(s>=e){alert('終了時間は開始時間より後にしてください');return;}
   if(!data.duties[pk])data.duties[pk]={};
   data.duties[pk][dutyModalDk]={staffId,start:s,end:e,rest:r};
-  saveData();closeModal('duty-modal');renderDutySet();
+  saveData();closeModal('duty-modal');
+  if(fromPage==='shift') renderShift();
+  else renderDutySet();
 }
 function clearDutyEntry(){
   const pk=document.getElementById('duty-modal')._pk;
+  const fromPage=document.getElementById('duty-modal')._fromPage||'duty-set';
   if(!data.duties[pk])data.duties[pk]={};
   delete data.duties[pk][dutyModalDk];
-  saveData();closeModal('duty-modal');renderDutySet();
+  saveData();closeModal('duty-modal');
+  if(fromPage==='shift') renderShift();
+  else renderDutySet();
 }
 function saveHolidays(){
   const pk=periodKey();
@@ -1118,6 +1256,7 @@ function renderStaff(){
     const bl=s.type==='A'?'常勤A':s.type==='B'?'常勤B':'非常勤';
     const div=document.createElement('div');div.className='staff-item';
     div.innerHTML=`<span class="badge ${bc}">${bl}</span><span class="staff-name">${s.name}</span>
+      ${s.satFixed?'<span class="badge" style="background:#fff3cd;color:#856404;font-size:10px;">🗓土曜固定</span>':''}
       <div class="staff-btns">
         <button class="btn btn-outline btn-sm" onclick="openEditStaffModal('${s.id}')">編集</button>
         <button class="btn btn-danger btn-sm"  onclick="deleteStaff('${s.id}')">削除</button>
@@ -1158,6 +1297,7 @@ function openAddStaffModal(){
   document.getElementById('staff-modal-title').textContent='スタッフ追加';
   document.getElementById('staff-name-input').value='';
   document.getElementById('staff-type-input').value='A';
+  document.getElementById('staff-sat-fixed').checked=false;
   document.getElementById('staff-modal').classList.add('open');
 }
 function openEditStaffModal(id){
@@ -1166,14 +1306,20 @@ function openEditStaffModal(id){
   document.getElementById('staff-modal-title').textContent='スタッフ編集';
   document.getElementById('staff-name-input').value=s.name;
   document.getElementById('staff-type-input').value=s.type;
+  document.getElementById('staff-sat-fixed').checked=!!s.satFixed;
   document.getElementById('staff-modal').classList.add('open');
 }
 function saveStaff(){
   const name=document.getElementById('staff-name-input').value.trim();
   const type=document.getElementById('staff-type-input').value;
+  const satFixed=document.getElementById('staff-sat-fixed').checked;
   if(!name){alert('名前を入力してください');return;}
-  if(editingStaffId){const s=data.staff.find(s=>s.id===editingStaffId);s.name=name;s.type=type;}
-  else data.staff.push({id:'s'+Date.now(),name,type,prefStart:'08:30',prefEnd:'18:30',prefEndSat:'16:00',prefRest:60});
+  if(editingStaffId){
+    const s=data.staff.find(s=>s.id===editingStaffId);
+    s.name=name;s.type=type;s.satFixed=satFixed;
+  } else {
+    data.staff.push({id:'s'+Date.now(),name,type,satFixed,prefStart:'08:30',prefEnd:'18:30',prefEndSat:'16:00',prefRest:60});
+  }
   saveData();closeModal('staff-modal');renderStaff();
 }
 function deleteStaff(id){
@@ -1240,6 +1386,402 @@ function renderSummary(){
 }
 
 // ====================================================================
+// 希望入力UI（希望休＋有給希望）
+// ====================================================================
+// wishes[pk][staffId][dk] = {type:'off'|'paid', paidType?:'full'|'half'|'custom', paidAmPm?:'am'|'pm', paidStart?,paidEnd?}
+
+let wishActiveStaff=null;
+
+function loadWishes(){return JSON.parse(localStorage.getItem('shift_wishes2')||'{}');}
+function saveWishes(w){localStorage.setItem('shift_wishes2',JSON.stringify(w));}
+
+function renderWishInput(){
+  const pk=periodKey();
+  const wishes=loadWishes();
+  const pkW=wishes[pk]||{};
+
+  // スタッフタブ
+  const tabEl=document.getElementById('wish-staff-tabs');
+  if(!wishActiveStaff&&data.staff.length)wishActiveStaff=data.staff[0].id;
+  tabEl.innerHTML=data.staff.map(s=>{
+    const bc=s.type==='A'?'var(--green-lt)':s.type==='B'?'#cce5ff':'var(--yellow-lt)';
+    const tc=s.type==='A'?'var(--green-dk)':s.type==='B'?'#004085':'var(--yellow-dk)';
+    const isActive=s.id===wishActiveStaff;
+    const cnt=Object.keys(pkW[s.id]||{}).length;
+    return `<button onclick="switchWishStaff('${s.id}')" style="
+      padding:8px 12px;border-radius:20px;border:2px solid ${isActive?tc:var(--border)};
+      background:${isActive?bc:'#fff'};color:${isActive?tc:'#666'};
+      font-size:12px;font-weight:700;cursor:pointer;">
+      ${s.name}${cnt>0?` <span style="background:var(--red);color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;">${cnt}</span>`:''}
+    </button>`;
+  }).join('');
+
+  renderWishArea(pk,pkW);
+}
+
+function switchWishStaff(id){
+  wishActiveStaff=id;
+  renderWishInput();
+}
+
+function renderWishArea(pk,pkW){
+  const el=document.getElementById('wish-input-area');
+  const s=data.staff.find(s=>s.id===wishActiveStaff);
+  if(!s){el.innerHTML='';return;}
+
+  const dates=getPeriodDates(currentYear,currentMonth);
+  const workDates=dates.filter(d=>getDayType(d)!=='holiday');
+  const staffW=pkW[s.id]||{};
+
+  const bc=s.type==='A'?'badge-a':s.type==='B'?'badge-b':'badge-part';
+  const bl=s.type==='A'?'常勤A':s.type==='B'?'常勤B':'非常勤';
+
+  el.innerHTML=`
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+      <span class="badge ${bc}">${bl}</span>
+      <strong style="font-size:15px;">${s.name}</strong>
+      <span style="font-size:11px;color:#888;margin-left:auto;">
+        希望: ${Object.keys(staffW).length}日
+      </span>
+    </div>
+    <p style="font-size:11px;color:#888;margin-bottom:8px;">日付をタップして希望の種類を選んでください</p>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;">
+      ${workDates.map(d=>{
+        const dk=dateKey(d);
+        const dow=d.getDay();
+        const w=staffW[dk];
+        let bg='#f8f9ff',border='#dde5f5',label=`${d.getMonth()+1}/${d.getDate()}`,color=dow===6?'#1565c0':'#333';
+        if(w){
+          if(w.type==='off'){bg='#fde8e8';border='#f5c6cb';label+=`<br><span style="font-size:9px;">😴希望休</span>`;}
+          else if(w.type==='paid'){
+            bg='var(--purple-lt)';border='#ce93d8';
+            const pl=w.paidType==='half'?`半日(${w.paidAmPm==='am'?'午前':'午後'})`:w.paidType==='custom'?`${fmt(w.paidStart)}–${fmt(w.paidEnd)}`:'全日';
+            label+=`<br><span style="font-size:9px;">🟣有給(${pl})</span>`;
+          }
+        }
+        return `<button onclick="openWishDayModal('${pk}','${s.id}','${dk}')" style="
+          background:${bg};border:1.5px solid ${border};border-radius:8px;
+          padding:6px 8px;font-size:12px;color:${color};cursor:pointer;
+          font-weight:${w?'700':'400'};min-width:58px;text-align:center;line-height:1.4;">
+          ${label}
+        </button>`;
+      }).join('')}
+    </div>`;
+}
+
+// 希望入力モーダルを開く
+let wishModalPk,wishModalStaffId,wishModalDk;
+function openWishDayModal(pk,staffId,dk){
+  wishModalPk=pk;wishModalStaffId=staffId;wishModalDk=dk;
+  const wishes=loadWishes();
+  const w=(wishes[pk]||{})[staffId]&&(wishes[pk]||{})[staffId][dk];
+  const d=new Date(dk);
+
+  document.getElementById('wish-day-modal-title').textContent=
+    `希望入力（${d.getMonth()+1}/${d.getDate()}(${DOW_JP[d.getDay()]})）`;
+
+  // 現在の設定を反映
+  const type=w?w.type:'none';
+  document.getElementById('wish-type-sel').value=type;
+  onWishTypeChange();
+  if(w&&w.type==='paid'){
+    document.getElementById('wish-paid-type').value=w.paidType||'full';
+    onWishPaidTypeChange();
+    if(w.paidType==='half')document.getElementById('wish-paid-ampm').value=w.paidAmPm||'am';
+    if(w.paidType==='custom'){
+      document.getElementById('wish-paid-cstart').value=w.paidStart||'08:30';
+      document.getElementById('wish-paid-cend').value=w.paidEnd||'12:30';
+    }
+  }
+  document.getElementById('wish-day-modal').classList.add('open');
+}
+
+function onWishTypeChange(){
+  const t=document.getElementById('wish-type-sel').value;
+  document.getElementById('wish-paid-detail').style.display=t==='paid'?'':'none';
+  if(t==='paid'){document.getElementById('wish-paid-type').value='full';onWishPaidTypeChange();}
+}
+function onWishPaidTypeChange(){
+  const pt=document.getElementById('wish-paid-type').value;
+  document.getElementById('wish-paid-half-row').style.display   =pt==='half'  ?'':'none';
+  document.getElementById('wish-paid-custom-row').style.display =pt==='custom'?'':'none';
+}
+
+function saveWishDay(){
+  const t=document.getElementById('wish-type-sel').value;
+  const wishes=loadWishes();
+  if(!wishes[wishModalPk])wishes[wishModalPk]={};
+  if(!wishes[wishModalPk][wishModalStaffId])wishes[wishModalPk][wishModalStaffId]={};
+
+  if(t==='none'){
+    delete wishes[wishModalPk][wishModalStaffId][wishModalDk];
+  } else if(t==='off'){
+    wishes[wishModalPk][wishModalStaffId][wishModalDk]={type:'off'};
+  } else if(t==='paid'){
+    const pt=document.getElementById('wish-paid-type').value;
+    let entry={type:'paid',paidType:pt};
+    if(pt==='half') entry.paidAmPm=document.getElementById('wish-paid-ampm').value;
+    if(pt==='custom'){
+      entry.paidStart=document.getElementById('wish-paid-cstart').value;
+      entry.paidEnd  =document.getElementById('wish-paid-cend').value;
+      if(!entry.paidStart||!entry.paidEnd||entry.paidStart>=entry.paidEnd){
+        alert('開始・終了時間を正しく入力してください');return;
+      }
+    }
+    wishes[wishModalPk][wishModalStaffId][wishModalDk]=entry;
+  }
+  saveWishes(wishes);
+  closeModal('wish-day-modal');
+  renderWishInput();
+}
+
+function clearWishDay(){
+  const wishes=loadWishes();
+  if(wishes[wishModalPk]&&wishes[wishModalPk][wishModalStaffId])
+    delete wishes[wishModalPk][wishModalStaffId][wishModalDk];
+  saveWishes(wishes);
+  closeModal('wish-day-modal');
+  renderWishInput();
+}
+
+// ====================================================================
+// 自動シフト生成エンジン
+// ====================================================================
+function autoCreateShift(){
+  if(!confirm('現在のシフトを上書きして自動作成します。よろしいですか？'))return;
+
+  const pk=periodKey();
+  const dates=getPeriodDates(currentYear,currentMonth);
+  const workDates=dates.filter(d=>getDayType(d)!=='holiday');
+  const satDates=workDates.filter(d=>d.getDay()===6);
+  const wishes=loadWishes();
+  const pkWishes=wishes[pk]||{};
+
+  // 新シフトをリセット
+  data.shifts[pk]={};
+  const log=[];
+
+  const staffA=data.staff.filter(s=>s.type==='A');
+  const staffB=data.staff.find(s=>s.type==='B');
+  const staffPart=data.staff.filter(s=>s.type==='part');
+
+  // --- 常勤B：全平日・土曜に固定出勤（週休なし設定なのでスキップ） ---
+  // 常勤Bは自動では何も登録しない（デフォルト出勤）
+
+  // --- 常勤A：土曜固定出勤フラグ確認 ---
+  // satFixed:true のスタッフは全土曜に必ず出勤
+  staffA.forEach(s=>{
+    if(s.satFixed){
+      satDates.forEach(d=>{
+        const sWishes=pkWishes[s.id]||{};
+        if(sWishes[dateKey(d)]) return; // 希望休・有給は尊重
+        const dt=getDayType(d);
+        addShift(pk,d,{staffId:s.id,type:'work',
+          start:s.prefStart||'08:30',
+          end:s.prefEndSat||'16:00',
+          rest:s.prefRest!==undefined?s.prefRest:data.defaultRest});
+        satCount[s.id]++;
+        log.push(`  ${dateKey(d)} → 土曜固定出勤（${s.name}）`);
+      });
+    }
+  });
+
+  // --- 常勤A：週休2日 + 希望休優先 ---
+  // 週のグループを作る
+  const weekGroups={}; // weekKey -> [dates]
+  workDates.forEach(date=>{
+    const dow=date.getDay();
+    const mon=new Date(date);
+    mon.setDate(date.getDate()-(dow===0?6:dow-1));
+    const wk=dateKey(mon);
+    if(!weekGroups[wk])weekGroups[wk]=[];
+    weekGroups[wk].push(date);
+  });
+  const weeks=Object.keys(weekGroups).sort();
+
+  // 土曜出勤カウント（バランス用）
+  const satCount={};
+  staffA.forEach(s=>satCount[s.id]=0);
+
+  staffA.forEach(s=>{
+    const sWishes=pkWishes[s.id]||{};
+    log.push(`\n【${s.name}（常勤A）】`);
+
+    // 希望（有給・休み）を先に登録
+    Object.keys(sWishes).forEach(dk=>{
+      const w=sWishes[dk];
+      const d=new Date(dk);
+      if(getDayType(d)==='holiday')return;
+      if(w.type==='paid'){
+        addShift(pk,d,{staffId:s.id,type:'paid',paidType:w.paidType||'full',paidAmPm:w.paidAmPm,paidStart:w.paidStart,paidEnd:w.paidEnd});
+        log.push(`  ${dk} → 有給希望🟣(${w.paidType||'full'})`);
+      } else if(w.type==='off'){
+        addShift(pk,d,{staffId:s.id,type:'off'});
+        log.push(`  ${dk} → 希望休✅`);
+      }
+    });
+
+    weeks.forEach(wk=>{
+      const wDates=weekGroups[wk];
+      const requiredOff=2;
+      // 既に休み・有給が入っている日数
+      let offCount=wDates.filter(d=>{
+        const e=getShiftFor(pk,d,s.id);
+        return e&&(e.type==='off'||e.type==='paid');
+      }).length;
+
+      // 残りの休みを自動で割り当て
+      if(offCount<requiredOff){
+        const candidates=wDates
+          .filter(d=>!sWishes[dateKey(d)])
+          .filter(d=>!getShiftFor(pk,d,s.id))
+          .sort((a,b)=>{
+            // 繁忙日は休みにしにくい → 後回し
+            const ba=getBusyType(a)?1:0;
+            const bb=getBusyType(b)?1:0;
+            // 土曜を休みにする場合は出勤カウントが多い人を優先
+            return ba-bb;
+          });
+        for(const d of candidates){
+          if(offCount>=requiredOff)break;
+          addShift(pk,d,{staffId:s.id,type:'off'});
+          offCount++;
+          log.push(`  ${dateKey(d)} → 自動休み`);
+        }
+      }
+
+      // 残りは出勤
+      wDates.forEach(d=>{
+        if(!getShiftFor(pk,d,s.id)){
+          const dt=getDayType(d);
+          const st=s.prefStart||'08:30';
+          const en=dt==='saturday'?(s.prefEndSat||'16:00'):(s.prefEnd||'18:30');
+          const re=s.prefRest!==undefined?s.prefRest:data.defaultRest;
+          addShift(pk,d,{staffId:s.id,type:'work',start:st,end:en,rest:re});
+          if(d.getDay()===6)satCount[s.id]++;
+        }
+      });
+    });
+  });
+
+  // --- 土曜バランス調整（常勤A） ---
+  // 出勤が多い人と少ない人を入れ替え
+  let adjusted=0;
+  for(let iter=0;iter<10;iter++){
+    const vals=Object.values(satCount);
+    const maxV=Math.max(...vals),minV=Math.min(...vals);
+    if(maxV-minV<=1)break;
+    const heavy=staffA.find(s=>satCount[s.id]===maxV);
+    const light=staffA.find(s=>satCount[s.id]===minV);
+    // heavyが出勤中の土曜でlightが休みの日を探して交換
+    for(const d of satDates){
+      const dk2=dateKey(d);
+      const he=getShiftFor(pk,d,heavy.id);
+      const le=getShiftFor(pk,d,light.id);
+      if(he&&he.type==='work'&&le&&le.type==='off'){
+        // 交換
+        removeShift(pk,d,heavy.id);
+        removeShift(pk,d,light.id);
+        const dt=getDayType(d);
+        addShift(pk,d,{staffId:heavy.id,type:'off'});
+        addShift(pk,d,{staffId:light.id,type:'work',
+          start:light.prefStart||'08:30',
+          end:light.prefEndSat||'16:00',
+          rest:light.prefRest!==undefined?light.prefRest:data.defaultRest});
+        satCount[heavy.id]--;satCount[light.id]++;
+        adjusted++;
+        log.push(`\n土曜バランス調整: ${light.name}↑ ⇄ ${heavy.name}↓（${dk2}）`);
+        break;
+      }
+    }
+  }
+
+  // --- 非常勤：月31時間以内・希望休優先・繁忙日に配置 ---
+  staffPart.forEach(s=>{
+    const sWishes=pkWishes[s.id]||{};
+    const limit=31;
+    let totalHrs=0;
+    log.push(`\n【${s.name}（非常勤）】`);
+
+    // 希望（有給・希望休）を先に登録
+    Object.keys(sWishes).forEach(dk=>{
+      const w=sWishes[dk];
+      const d=new Date(dk);
+      if(getDayType(d)==='holiday')return;
+      if(w.type==='paid'){
+        const ph=calcPaidHoursFromEntry({paidType:w.paidType,paidStart:w.paidStart,paidEnd:w.paidEnd},s.id,getDayType(d));
+        addShift(pk,d,{staffId:s.id,type:'paid',paidType:w.paidType||'full',paidAmPm:w.paidAmPm,paidStart:w.paidStart,paidEnd:w.paidEnd});
+        totalHrs+=ph;
+        log.push(`  ${dk} → 有給希望🟣(${ph.toFixed(1)}h)`);
+      } else if(w.type==='off'){
+        addShift(pk,d,{staffId:s.id,type:'off'});
+        log.push(`  ${dk} → 希望休✅`);
+      }
+    });
+
+    // 繁忙日を優先して出勤割り当て
+    const busyFirst=[...workDates].sort((a,b)=>{
+      const ba=getBusyType(a)?0:1;
+      const bb=getBusyType(b)?0:1;
+      return ba-bb;
+    });
+
+    busyFirst.forEach(d=>{
+      if(getShiftFor(pk,d,s.id))return; // 既に設定済み
+      const dt=getDayType(d);
+      const st=s.prefStart||'08:30';
+      const en=dt==='saturday'?(s.prefEndSat||'16:00'):(s.prefEnd||'18:30');
+      const re=s.prefRest!==undefined?s.prefRest:data.defaultRest;
+      const hrs=calcNet(st,en,re);
+      if(totalHrs+hrs>limit){
+        // 時間超過 → 休みに
+        addShift(pk,d,{staffId:s.id,type:'off'});
+        log.push(`  ${dateKey(d)} → 上限超過のため休み`);
+        return;
+      }
+      addShift(pk,d,{staffId:s.id,type:'work',start:st,end:en,rest:re});
+      totalHrs+=hrs;
+      log.push(`  ${dateKey(d)} → 出勤（累計${totalHrs.toFixed(1)}h）`);
+    });
+  });
+
+  saveData();
+
+  // 結果表示
+  const resultCard=document.getElementById('auto-result-card');
+  const resultLog=document.getElementById('auto-result-log');
+  resultCard.style.display='';
+  resultLog.innerHTML=log.map(l=>
+    l.startsWith('\n')?`<strong style="color:var(--blue);">${l.replace('\n','')}</strong>`:
+    l.includes('希望休')? `<span style="color:var(--red);">${l}</span>`:
+    l.includes('調整')  ? `<span style="color:var(--purple);">${l}</span>`:
+    `<span style="color:#555;">${l}</span>`
+  ).join('<br>');
+
+  alert('✨ 自動シフト作成が完了しました！\nシフトタブで確認してください。');
+  showPage('shift',document.querySelector('nav button'));
+}
+
+function addShift(pk,date,entry){
+  const dk=dateKey(date);
+  if(!data.shifts[pk])data.shifts[pk]={};
+  if(!data.shifts[pk][dk])data.shifts[pk][dk]=[];
+  // 同スタッフの既存エントリを上書き
+  const idx=data.shifts[pk][dk].findIndex(e=>e.staffId===entry.staffId);
+  if(idx>=0)data.shifts[pk][dk][idx]=entry;
+  else data.shifts[pk][dk].push(entry);
+}
+function removeShift(pk,date,staffId){
+  const dk=dateKey(date);
+  if(!data.shifts[pk]||!data.shifts[pk][dk])return;
+  data.shifts[pk][dk]=data.shifts[pk][dk].filter(e=>e.staffId!==staffId);
+}
+function getShiftFor(pk,date,staffId){
+  const dk=dateKey(date);
+  return ((data.shifts[pk]||{})[dk]||[]).find(e=>e.staffId===staffId)||null;
+}
+
+// ====================================================================
 // UI制御
 // ====================================================================
 function toggleSection(hd){
@@ -1267,6 +1809,7 @@ function renderPage(id){
   const lbl=getPeriodLabel(currentYear,currentMonth);
   document.getElementById('header-period').textContent=lbl;
   if(id==='shift'){document.getElementById('shift-month-label').textContent=lbl;renderShift();}
+  if(id==='auto'){document.getElementById('auto-month-label').textContent=lbl;renderWishInput();document.getElementById('auto-result-card').style.display='none';}
   if(id==='duty-set'){document.getElementById('dutyset-month-label').textContent=lbl;renderDutySet();}
   if(id==='staff')renderStaff();
   if(id==='summary'){document.getElementById('summary-month-label').textContent=lbl;renderSummary();}
