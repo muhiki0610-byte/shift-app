@@ -360,20 +360,8 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 
 <!-- ===== ページ: スタッフ ===== -->
 <div id="page-staff" class="page">
-  <div class="card">
-    <div class="card-hd">👥 スタッフ一覧</div>
-    <div id="staff-list" style="padding:0;"></div>
-  </div>
-  <button class="btn btn-primary btn-block" onclick="openAddStaffModal()">＋ スタッフを追加</button>
 
-  <div class="card" style="margin-top:10px;">
-    <div class="collapsible-hd open" onclick="toggleSection(this)">⏰ 希望勤務時間（全員） <span class="chev">▾</span></div>
-    <div class="collapsible-bd open">
-      <p style="font-size:12px;color:#888;margin-bottom:10px;">シフト追加時のデフォルト時間に使われます。</p>
-      <div id="pref-time-list"></div>
-    </div>
-  </div>
-
+  <!-- デフォルト休憩時間（一番上に配置） -->
   <div class="card">
     <div class="card-hd">⏸ デフォルト休憩時間</div>
     <div class="card-bd">
@@ -382,6 +370,22 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
         <span style="font-size:14px;flex-shrink:0;">分</span>
         <button class="btn btn-primary btn-sm" onclick="saveDefaultRest()">保存</button>
       </div>
+    </div>
+  </div>
+
+  <!-- スタッフ一覧 -->
+  <div class="card">
+    <div class="card-hd">👥 スタッフ一覧</div>
+    <div id="staff-list" style="padding:0;"></div>
+  </div>
+  <button class="btn btn-primary btn-block" onclick="openAddStaffModal()">＋ スタッフを追加</button>
+
+  <!-- 希望勤務時間（折りたたみ・デフォルト閉じ） -->
+  <div class="card" style="margin-top:10px;">
+    <div class="collapsible-hd" onclick="toggleSection(this)">⏰ 希望勤務時間設定（タップして開く） <span class="chev">▾</span></div>
+    <div class="collapsible-bd">
+      <p style="font-size:12px;color:#888;margin-bottom:10px;">シフト追加時のデフォルト時間に使われます。</p>
+      <div id="pref-time-list"></div>
     </div>
   </div>
 </div>
