@@ -245,6 +245,8 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 .collapsible-hd.open .chev{transform:rotate(180deg);}
 .collapsible-bd{display:none;padding:12px 14px;}
 .collapsible-bd.open{display:block;}
+/* カレンダーグリッド：高さゼロセルを含む行も高さゼロに */
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;grid-auto-rows:auto;}
 
 /* ── 希望時間 ── */
 .pref-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
@@ -1210,8 +1212,8 @@ function renderShiftCal(){
       const isToday=d.getFullYear()===today.getFullYear()&&d.getMonth()===today.getMonth()&&d.getDate()===today.getDate();
 
       if(!inPeriod){
-        // 期間外：セルをほぼ非表示（高さを持たせない）
-        cellsHtml+=`<div style="min-height:4px;background:#f0f0f0;border-radius:4px;opacity:0.2;"></div>`;
+        // 期間外：高さゼロで完全に非表示
+        cellsHtml+=`<div style="height:0;min-height:0;overflow:hidden;border:none;padding:0;margin:0;"></div>`;
         continue;
       }
 
@@ -1276,7 +1278,7 @@ function renderShiftCal(){
       <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px;">
         ${['日','月','火','水','木','金','土'].map((d,i)=>`<div style="text-align:center;font-size:10px;font-weight:700;padding:3px 0;color:${i===0?'#e53935':i===6?'#1565c0':'#888'};">${d}</div>`).join('')}
       </div>
-      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;">${cellsHtml}</div>`;
+      <div class="cal-grid" style="gap:2px;">${cellsHtml}</div>`;
   }
 
   const m1Year=currentMonth===1?currentYear-1:currentYear;
@@ -2251,8 +2253,8 @@ function renderWishArea(pk,pkW,pkDone){
       const w=staffW[dk];
 
       if(!inPeriod){
-        // 期間外：ほぼ非表示
-        cellsHtml+=`<div style="min-height:4px;background:#f0f0f0;border-radius:4px;opacity:0.2;"></div>`;
+        // 期間外：高さゼロで完全に非表示
+        cellsHtml+=`<div style="height:0;min-height:0;overflow:hidden;border:none;padding:0;margin:0;"></div>`;
         continue;
       }
       if(isHol){
