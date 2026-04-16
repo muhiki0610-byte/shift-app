@@ -322,7 +322,16 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
     <div class="collapsible-bd" id="sat-balance"></div>
   </div>
 
-  <!-- シフトカード一覧 -->
+  <!-- ビュー切替 -->
+  <div style="display:flex;gap:6px;margin-bottom:8px;">
+    <button id="shift-view-cal-btn" onclick="setShiftView('cal')" style="flex:1;padding:10px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;touch-action:manipulation;background:#1565c0;color:#fff;border:none;">📅 カレンダー</button>
+    <button id="shift-view-list-btn" onclick="setShiftView('list')" style="flex:1;padding:10px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;touch-action:manipulation;background:#f0f0f0;color:#666;border:none;">📋 リスト</button>
+  </div>
+
+  <!-- カレンダービュー -->
+  <div id="shift-cal-view"></div>
+
+  <!-- リストビュー -->
   <div id="shift-day-list"></div>
 
   <div style="display:flex;gap:8px;margin-bottom:16px;">
@@ -1009,11 +1018,128 @@ function openWishForStaff(staffId){
   showPage('auto',btn);
 }
 
+let shiftViewMode = 'cal'; // 'cal' | 'list'
+function setShiftView(mode){
+  shiftViewMode = mode;
+  document.getElementById('shift-view-cal-btn').style.cssText = mode==='cal'
+    ? 'flex:1;padding:10px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;touch-action:manipulation;background:#1565c0;color:#fff;border:none;'
+    : 'flex:1;padding:10px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;touch-action:manipulation;background:#f0f0f0;color:#666;border:none;';
+  document.getElementById('shift-view-list-btn').style.cssText = mode==='list'
+    ? 'flex:1;padding:10px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;touch-action:manipulation;background:#1565c0;color:#fff;border:none;'
+    : 'flex:1;padding:10px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;touch-action:manipulation;background:#f0f0f0;color:#666;border:none;';
+  document.getElementById('shift-cal-view').style.display  = mode==='cal'  ? '' : 'none';
+  document.getElementById('shift-day-list').style.display  = mode==='list' ? '' : 'none';
+  if(mode==='cal')  renderShiftCal();
+  if(mode==='list') renderShiftList();
+}
+
+function renderShiftCal(){
+  const pk=periodKey();
+  const dates=getPeriodDates(currentYear,currentMonth);
+  const container=document.getElementById('shift-cal-view');
+
+  // 対象期間のSetを作る
+  const periodSet=new Set(dates.map(d=>dateKey(d)));
+
+  // 1ヶ月分カレンダーを生成する関数
+  function buildShiftMonthCal(year,month){
+    const daysInMonth=new Date(year,month+1,0).getDate();
+    const firstDow=new Date(year,month,1).getDay();
+    let cellsHtml='';
+    for(let i=0;i<firstDow;i++) cellsHtml+=`<div></div>`;
+
+    for(let day=1;day<=daysInMonth;day++){
+      const d=new Date(year,month,day);
+      const dk=dateKey(d);
+      const dow=d.getDay();
+      const inPeriod=periodSet.has(dk);
+      const dayType=getDayType(d);
+      const isHol=dayType==='holiday';
+      const shifts=(data.shifts[pk]||{})[dk]||[];
+      const duties=(data.duties[pk]||{})[dk];
+      const today=new Date();
+      const isToday=d.getFullYear()===today.getFullYear()&&d.getMonth()===today.getMonth()&&d.getDate()===today.getDate();
+
+      if(!inPeriod){
+        cellsHtml+=`<div style="min-height:64px;background:#f5f5f5;border-radius:6px;opacity:0.3;"></div>`;
+        continue;
+      }
+
+      const dateColor=dow===0||isHol?'#e53935':dow===6?'#1565c0':'#333';
+      let cellBg=isHol?'#fff3cd':dow===6?'#fffde7':'#fff';
+      if(isToday) cellBg='#e3f2fd';
+
+      // スタッフ状態をコンパクトに表示
+      let staffRows='';
+      if(isHol){
+        if(duties&&duties.staffId){
+          const st=data.staff.find(s=>s.id===duties.staffId);
+          staffRows=`<div style="font-size:9px;background:#d4edda;color:#155724;border-radius:3px;padding:1px 3px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">🟢${st?st.name:'?'}</div>`;
+        } else {
+          staffRows=`<div style="font-size:9px;color:#ccc;margin-top:2px;">当番未設定</div>`;
+        }
+      } else {
+        staffRows=data.staff.map(s=>{
+          const e=shifts.find(e=>e.staffId===s.id);
+          let icon='🟢',bg2='#d4edda',tc='#155724';
+          if(e&&e.type==='off'){icon='🔴';bg2='#ffebee';tc='#b71c1c';}
+          else if(e&&e.type==='paid'){icon='🟣';bg2='#f3e5f5';tc='#7b1fa2';}
+          const nameShort=s.name.length>3?s.name.slice(0,3)+'…':s.name;
+          return `<div style="font-size:9px;background:${bg2};color:${tc};border-radius:3px;padding:1px 3px;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${icon}${nameShort}</div>`;
+        }).join('');
+      }
+
+      cellsHtml+=`<div onclick="jumpToDay('${dk}')" style="min-height:64px;background:${cellBg};border:${isToday?'2px solid #1565c0':'1.5px solid #e0e0e0'};border-radius:6px;
+        padding:3px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0.08);overflow:hidden;">
+        <div style="font-size:12px;font-weight:700;color:${dateColor};line-height:1.2;">${day}${isHol?'<span style="font-size:8px;color:#e53935;">祝</span>':''}</div>
+        ${staffRows}
+      </div>`;
+    }
+
+    return `
+      <div style="font-size:13px;font-weight:700;color:#333;margin:12px 0 6px;">${year}年${month+1}月</div>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px;">
+        ${['日','月','火','水','木','金','土'].map((d,i)=>`<div style="text-align:center;font-size:10px;font-weight:700;padding:3px 0;color:${i===0?'#e53935':i===6?'#1565c0':'#888'};">${d}</div>`).join('')}
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;">${cellsHtml}</div>`;
+  }
+
+  const m1Year=currentMonth===1?currentYear-1:currentYear;
+  const m1Month=currentMonth===1?11:currentMonth-2;
+  const m2Year=currentYear;
+  const m2Month=currentMonth-1;
+
+  container.innerHTML=buildShiftMonthCal(m1Year,m1Month)+buildShiftMonthCal(m2Year,m2Month);
+}
+
+// カレンダーセルタップ→リストビューの該当日にスクロール
+function jumpToDay(dk){
+  setShiftView('list');
+  setTimeout(()=>{
+    const cards=document.querySelectorAll('#shift-day-list .day-card');
+    cards.forEach(card=>{
+      if(card.querySelector('[data-dk="'+dk+'"]')||card.innerHTML.includes(dk)){
+        card.classList.add('open');
+        card.scrollIntoView({behavior:'smooth',block:'center'});
+      }
+    });
+    // data-dk属性でも探す
+    const target=document.querySelector(`#shift-day-list [data-dk="${dk}"]`);
+    if(target){
+      const card=target.closest('.day-card');
+      if(card){card.classList.add('open');card.scrollIntoView({behavior:'smooth',block:'center'});}
+    }
+  },100);
+}
+
 function renderShift(){
   renderWishShortcuts();
   renderWeeklyOffPanel();
   renderSatBalance('sat-balance');
+  setShiftView(shiftViewMode);
+}
 
+function renderShiftList(){
   const dates=getPeriodDates(currentYear,currentMonth);
   const pk=periodKey();
   const container=document.getElementById('shift-day-list');
@@ -1188,6 +1314,7 @@ function renderShift(){
 
     const card=document.createElement('div');
     card.className=`day-card ${bg}${isToday?' open':''}`;
+    card.dataset.dk=dk;
     card.innerHTML=`
       <div class="day-card-head" onclick="this.parentElement.classList.toggle('open')">
         <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0;">
@@ -1961,6 +2088,11 @@ function renderWishArea(pk,pkW,pkDone){
 // 希望入力モーダルを開く
 let wishModalPk,wishModalStaffId,wishModalDk;
 function openWishDayModal(pk,staffId,dk){
+  // 締め切りチェック（どんな経路でも入力不可）
+  if(isWishDeadlinePassed()){
+    showConfirm(`🔒 入力締め切り済みです（${getDeadlineLabel()}まで）\n\n閲覧のみ可能です。`,()=>{});
+    return;
+  }
   wishModalPk=pk;wishModalStaffId=staffId;wishModalDk=dk;
   const wishes=loadWishes();
   const w=(wishes[pk]||{})[staffId]&&(wishes[pk]||{})[staffId][dk];
