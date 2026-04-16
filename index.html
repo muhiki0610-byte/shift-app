@@ -1169,7 +1169,7 @@ function openWishForStaff(staffId){
   showPage('auto',btn);
 }
 
-let shiftViewMode = 'cal'; // 'cal' | 'list'
+let shiftViewMode = 'list'; // 'cal' | 'list'
 function setShiftView(mode){
   shiftViewMode = mode;
   document.getElementById('shift-view-cal-btn').style.cssText = mode==='cal'
@@ -1185,9 +1185,11 @@ function setShiftView(mode){
 }
 
 function renderShiftCal(){
+  try{
   const pk=periodKey();
   const dates=getPeriodDates(currentYear,currentMonth);
   const container=document.getElementById('shift-cal-view');
+  if(!container)return;
 
   // 対象期間のSetを作る
   const periodSet=new Set(dates.map(d=>dateKey(d)));
@@ -1287,6 +1289,10 @@ function renderShiftCal(){
   const m2Month = m2Month0 < 0 ? 11 : m2Month0;
 
   container.innerHTML=buildShiftMonthCal(m1Year,m1Month)+buildShiftMonthCal(m2Year,m2Month);
+  }catch(e){
+    console.error('renderShiftCal error:',e);
+    document.getElementById('shift-cal-view').innerHTML='<p style="color:red;padding:16px;">カレンダー表示エラー。リスト表示をお使いください。</p>';
+  }
 }
 
 // カレンダーセルタップ→リストビューの該当日にスクロール
@@ -2881,6 +2887,7 @@ function changeMonth(d){
 }
 
 function renderPage(id){
+  try{
   const lbl=getPeriodLabel(currentYear,currentMonth);
   document.getElementById('header-period').textContent=lbl;
   if(id==='shift'){document.getElementById('shift-month-label').textContent=lbl;renderShift();}
@@ -2900,6 +2907,7 @@ function renderPage(id){
   if(id==='staff')renderStaff();
   if(id==='finalize'){document.getElementById('finalize-month-label').textContent=lbl;renderFinalize();}
   if(id==='summary'){document.getElementById('summary-month-label').textContent=lbl;renderSummary();}
+  }catch(e){console.error('renderPage error:',e);}
 }
 
 function closeModal(id){document.getElementById(id).classList.remove('open');}
