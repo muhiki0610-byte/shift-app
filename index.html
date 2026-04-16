@@ -20,8 +20,16 @@
   --nav-h:56px; --header-h:52px;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
-html,body{min-height:100%;overflow-x:hidden;overflow-y:auto;}
-body{font-family:-apple-system,'Helvetica Neue',Arial,sans-serif;background:var(--gray-bg);color:#222;font-size:15px;padding-bottom:calc(var(--nav-h)+env(safe-area-inset-bottom));}
+html{height:100%;}
+body{height:100%;overflow:hidden;font-family:-apple-system,'Helvetica Neue',Arial,sans-serif;background:var(--gray-bg);color:#222;font-size:15px;}
+#app-scroll{
+  position:fixed;
+  top:var(--header-h);
+  left:0;right:0;
+  bottom:calc(var(--nav-h) + env(safe-area-inset-bottom));
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+}
 
 /* ── ヘッダー ── */
 header{
@@ -55,7 +63,7 @@ nav button.active{color:var(--blue);}
 nav button.active .nav-ico{transform:scale(1.1);}
 
 /* ── ページ ── */
-.page{display:none;padding:12px 12px 80px;}
+.page{display:none;padding:12px 12px 24px;}
 .page.active{display:block;}
 
 /* ── 月セレクター ── */
@@ -270,6 +278,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
     <p id="header-period">--</p>
   </div>
 </header>
+<div id="app-scroll">
 
 <!-- ===== ページ: シフト ===== -->
 <div id="page-shift" class="page active">
@@ -564,6 +573,8 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
     </div>
   </div>
 </div>
+
+</div><!-- /#app-scroll -->
 
 <!-- ===== ボトムナビ ===== -->
 <nav>
