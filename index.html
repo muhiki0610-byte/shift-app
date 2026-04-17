@@ -1286,6 +1286,33 @@ function saveDayEdit(dateKey) {
   const assigns = getPeriodAssigns();
   if (!assigns[dateKey]) assigns[dateKey] = {};
 
+  // E/F週31h超過チェック
+  const efErrors = [];
+  staff.filter(s => s.type === 'E' || s.type === 'F').forEach(s => {
+    const workEl = document.getElementById(`work-${s.id}`);
+    if (!workEl || !workEl.checked) return;
+    const start = document.getElementById(`start-${s.id}`).value;
+    const end = document.getElementById(`end-${s.id}`).value;
+    const todayWork = calcWork(start, end);
+    // この週の既存合計（today分を除く）
+    const weekKey = getWeekKey(dateKey);
+    const dates = getPeriodDates();
+    let weekTotal = 0;
+    dates.forEach(dk => {
+      if (getWeekKey(dk) === weekKey && dk !== dateKey && assigns[dk] && assigns[dk][s.id]) {
+        weekTotal += assigns[dk][s.id].work || 0;
+      }
+    });
+    if (weekTotal + todayWork > 31) {
+      efErrors.push(`${s.name}：週${(weekTotal + todayWork).toFixed(1)}h（31h超過）`);
+    }
+  });
+
+  if (efErrors.length > 0) {
+    showToast('⚠️ E/F週31h超過：' + efErrors.join(' / '), 'error', 5000);
+    return; // 保存しない
+  }
+
   staff.forEach(s => {
     const workEl = document.getElementById(`work-${s.id}`);
     if (!workEl) return;
