@@ -1721,6 +1721,44 @@ async function runAutoShift() {
       addLog(`${s.name}（${s.type}）：${(cdHours[s.id]||0).toFixed(1)}時間`);
     });
 
+    // 土曜日にC/Dが誰もいない場合は強制的に1名追加（週休2日・170h上限内で）
+    workingDates.forEach(dk => {
+      const dayType = getDayType(dk);
+      if (dayType !== 'saturday') return;
+      if (!assigns[dk]) assigns[dk] = {};
+      const hasCD = cdStaff.some(s => assigns[dk][s.id]);
+      if (hasCD) return; // 既にC/Dがいれば不要
+
+      // 週の勤務日数が少ない順にC/Dを選んで1名配置
+      const weekKey = getWeekKey(dk);
+      const satTimes = DEFAULT_TIMES['C'].saturday; // C/D土曜は同じ時間
+      const satWork = calcWork(satTimes.start, satTimes.end);
+
+      const candidate = cdStaff
+        .filter(s => {
+          if ((paid[s.id] || []).includes(dk)) return false;
+          if ((cdWeekDays[s.id][weekKey] || 0) >= 5) return false; // 週休2日厳守
+          if ((cdHours[s.id] || 0) + satWork > 170) return false;  // 170h厳守
+          const req = (requests[s.id] || {})[dk];
+          if (req && req.type === 'ng') return false;
+          return true;
+        })
+        .sort((a, b) => (cdWeekDays[a.id][weekKey] || 0) - (cdWeekDays[b.id][weekKey] || 0))[0];
+
+      if (candidate) {
+        assigns[dk][candidate.id] = {
+          start: satTimes.start, end: satTimes.end,
+          break: calcBreak(timeToMinutes(satTimes.start), timeToMinutes(satTimes.end)),
+          work: satWork, source: 'auto', isManualFixed: false
+        };
+        cdHours[candidate.id] = (cdHours[candidate.id] || 0) + satWork;
+        cdWeekDays[candidate.id][weekKey] = (cdWeekDays[candidate.id][weekKey] || 0) + 1;
+        addLog(`${dk.slice(5)}(土)：C/D不在 → ${candidate.name}を強制追加`);
+      } else {
+        addLog(`${dk.slice(5)}(土)：C/D配置できる人員なし（170h/週休2日制限）`, 'warning');
+      }
+    });
+
     setProgress(60, 'E/F補完中...');
     addLog('E/Fスタッフ補完開始...');
     await sleep(50);
