@@ -1608,6 +1608,27 @@ async function runAutoShift() {
     addLog('C/Dスタッフ割り当て開始...');
     await sleep(50);
 
+    // 繁忙日判定：毎週火曜・第2金曜・祝日前後
+    function isBusyDay(dk) {
+      const d = fromDateKey(dk);
+      const dow = d.getDay(); // 0=日,1=月,...,5=金,6=土
+
+      // 毎週火曜日（dow=2）
+      if (dow === 2) return true;
+
+      // 第2金曜日（dow=5 かつ 8日〜14日）
+      if (dow === 5 && d.getDate() >= 8 && d.getDate() <= 14) return true;
+
+      // 祝日の前日・翌日
+      const prev = new Date(d); prev.setDate(prev.getDate() - 1);
+      const next = new Date(d); next.setDate(next.getDate() + 1);
+      const prevKey = toDateKey(prev);
+      const nextKey = toDateKey(next);
+      if (isHoliday(prevKey) || isHoliday(nextKey)) return true;
+
+      return false;
+    }
+
     // Calculate target hours for C/D (170h/month)
     const cdStaff = staff.filter(s => s.type === 'C' || s.type === 'D');
     const cdHours = {};
@@ -1633,6 +1654,7 @@ async function runAutoShift() {
       if (isDuty) return; // 休日当番日はC/D配置しない（当番者1名のみ）
       if (!assigns[dk]) assigns[dk] = {};
 
+      const isBusy = isBusyDay(dk); // 繁忙日フラグ
       const sortedCD = fairCD ? getCDSorted() : cdStaff;
 
       sortedCD.forEach(s => {
@@ -1642,10 +1664,11 @@ async function runAutoShift() {
         const req = (requests[s.id] || {})[dk];
         if (req && (req.type === 'ng' || (req.type === 'off' && respectReq))) return;
 
-        // 週休2日：週の勤務日数が5日に達したら配置しない
+        // 週休2日：繁忙日は週5日制限を6日に緩和（なるべく出勤）
         const weekKey = getWeekKey(dk);
         if (!cdWeekDays[s.id]) cdWeekDays[s.id] = {};
-        if ((cdWeekDays[s.id][weekKey] || 0) >= 5) return;
+        const maxDays = isBusy ? 6 : 5;
+        if ((cdWeekDays[s.id][weekKey] || 0) >= maxDays) return;
 
         // Check monthly 170h limit
         const CD_MAX_HOURS = 170;
