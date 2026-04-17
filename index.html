@@ -1504,6 +1504,7 @@ async function runAutoShift() {
     dates.forEach(dk => {
       const dayType = getDayType(dk);
       if (dayType === 'closed') return;
+      if (dayType === 'duty') return; // 休日当番日はA/B固定配置しない（当番者1名のみ）
 
       abStaff.forEach(s => {
         if ((paid[s.id] || []).includes(dk)) return;
@@ -1553,6 +1554,7 @@ async function runAutoShift() {
       const isSat = dayType === 'saturday';
       const isDuty = dayType === 'duty';
 
+      if (isDuty) return; // 休日当番日はC/D配置しない（当番者1名のみ）
       if (!assigns[dk]) assigns[dk] = {};
 
       const sortedCD = fairCD ? getCDSorted() : cdStaff;
@@ -1604,6 +1606,7 @@ async function runAutoShift() {
       const dayType = getDayType(dk);
       const isSat = dayType === 'saturday';
       const isDuty = dayType === 'duty';
+      if (isDuty) return; // 休日当番日はE/F配置しない（当番者1名のみ）
       if (!assigns[dk]) assigns[dk] = {};
 
       // Count current workers
@@ -1637,11 +1640,12 @@ async function runAutoShift() {
         const work = calcWork(times.start, times.end);
         if ((efWeekHours[weekKey][s.id] || 0) + work > 31) return; // Over weekly limit
 
-        // Assign if needed (under 3 workers or no CDEF)
+        // Assign if needed (土曜は2名、平日は3名、CDEF最低1名)
         const newWorkerCount = Object.keys(assigns[dk]).filter(sid => assigns[dk][sid]).length;
         const newHasCDEF = staff.some(s2 => ['C','D','E','F'].includes(s2.type) && assigns[dk][s2.id]);
+        const minRequired = isSat ? 2 : 3;
 
-        if (newWorkerCount < 3 || !newHasCDEF || Math.random() < 0.3) {
+        if (newWorkerCount < minRequired || !newHasCDEF || Math.random() < 0.3) {
           assigns[dk][s.id] = {
             start: times.start, end: times.end,
             break: calcBreak(timeToMinutes(times.start), timeToMinutes(times.end)),
@@ -1726,10 +1730,14 @@ function validateShift() {
     const dayAssigns = assigns[dk] || {};
     const workers = staff.filter(s => dayAssigns[s.id]);
     const hasCDEF = workers.some(s => ['C','D','E','F'].includes(s.type));
+    const dayType = getDayType(dk);
+    const isDutyDay = dayType === 'duty';
+    const isSatDay = dayType === 'saturday';
+    const minRequired = isDutyDay ? 1 : (isSatDay ? 2 : 3);
 
-    if (workers.length < 3) {
-      errors.push(`${dk.slice(5)}：勤務${workers.length}名（最低3名必要）`);
-    } else if (!hasCDEF) {
+    if (workers.length < minRequired) {
+      errors.push(`${dk.slice(5)}：勤務${workers.length}名（最低${minRequired}名必要）`);
+    } else if (!hasCDEF && !isDutyDay) {
       errors.push(`${dk.slice(5)}：C/D/E/Fが0名`);
     }
 
