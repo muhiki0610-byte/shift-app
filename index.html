@@ -1288,28 +1288,21 @@ function saveDayEdit(dateKey) {
   const assigns = getPeriodAssigns();
   if (!assigns[dateKey]) assigns[dateKey] = {};
 
-  // E/F週3日・31h超過チェック
+  // E/F週3日制限チェック
   const efErrors = [];
   staff.filter(s => s.type === 'E' || s.type === 'F').forEach(s => {
     const workEl = document.getElementById(`work-${s.id}`);
     if (!workEl || !workEl.checked) return;
-    const start = document.getElementById(`start-${s.id}`).value;
-    const end = document.getElementById(`end-${s.id}`).value;
-    const todayWork = calcWork(start, end, s.type);
     const weekKey = getWeekKey(dateKey);
     const dates = getPeriodDates();
-    let weekTotal = 0;
     let weekDays = 0;
     dates.forEach(dk => {
       if (getWeekKey(dk) === weekKey && dk !== dateKey && assigns[dk] && assigns[dk][s.id]) {
-        weekTotal += assigns[dk][s.id].work || 0;
         weekDays++;
       }
     });
     if (weekDays >= 3) {
-      efErrors.push(`${s.name}：週${weekDays + 1}日目（週3日まで）`);
-    } else if (weekTotal + todayWork > 31) {
-      efErrors.push(`${s.name}：週${(weekTotal + todayWork).toFixed(1)}h（31h超過）`);
+      efErrors.push(`${s.name}：この週すでに${weekDays}日勤務（週3日まで）`);
     }
   });
 
@@ -1687,24 +1680,17 @@ async function runAutoShift() {
     // Step 3: Fill in E/F to meet minimum staffing
     const efStaff = staff.filter(s => s.type === 'E' || s.type === 'F');
 
-    // E/Fの週合計・週勤務日数をキャッシュで管理
-    const efWeekCache = {};   // staffId -> weekKey -> hours
-    const efWeekDays = {};    // staffId -> weekKey -> days（勤務日数）
-    const EF_MAX_WEEK_HOURS = 31;
-    const EF_MAX_WEEK_DAYS = 3; // 週3日まで
+    // E/Fの週勤務日数を管理（staffId -> weekKey -> 日数）
+    const efWeekDays = {};
+    const EF_MAX_WEEK_DAYS = 3; // 週3日まで厳格
 
-    efStaff.forEach(s => { efWeekCache[s.id] = {}; efWeekDays[s.id] = {}; });
+    efStaff.forEach(s => { efWeekDays[s.id] = {}; });
 
-    function getEFWeekTotal(staffId, weekKey) {
-      return efWeekCache[staffId][weekKey] || 0;
-    }
     function getEFWeekDays(staffId, weekKey) {
-      return efWeekDays[staffId][weekKey] || 0;
+      return (efWeekDays[staffId] || {})[weekKey] || 0;
     }
-    function addEFWeekTotal(staffId, weekKey, work) {
-      if (!efWeekCache[staffId]) efWeekCache[staffId] = {};
+    function addEFWeekDay(staffId, weekKey) {
       if (!efWeekDays[staffId]) efWeekDays[staffId] = {};
-      efWeekCache[staffId][weekKey] = (efWeekCache[staffId][weekKey] || 0) + work;
       efWeekDays[staffId][weekKey] = (efWeekDays[staffId][weekKey] || 0) + 1;
     }
 
@@ -1747,17 +1733,15 @@ async function runAutoShift() {
           times = { start: req.start, end: req.end };
         }
         const work = calcWork(times.start, times.end, s.type);
-        const weekTotal = getEFWeekTotal(s.id, weekKey);
         const weekDays = getEFWeekDays(s.id, weekKey);
-        if (weekDays >= EF_MAX_WEEK_DAYS) continue;  // 週3日超えるならスキップ
-        if (weekTotal + work > EF_MAX_WEEK_HOURS) continue; // 31h超えるならスキップ
+        if (weekDays >= EF_MAX_WEEK_DAYS) continue; // 週3日を超えるならスキップ
 
         assigns[dk][s.id] = {
           start: times.start, end: times.end,
           break: calcBreak(timeToMinutes(times.start), timeToMinutes(times.end), s.type),
           work, source: 'auto', isManualFixed: false
         };
-        addEFWeekTotal(s.id, weekKey, work); // キャッシュ更新
+        addEFWeekDay(s.id, weekKey); // 日数カウント更新
       }
     });
 
@@ -1806,11 +1790,10 @@ async function runAutoShift() {
       }
     });
 
-    // Step 5: E/Fの週3日超過分を削除（念のため後処理）
-    addLog('E/F週3日超過チェック...');
+    // Step 5: E/F後処理 - 週3日を超えた勤務を強制削除
+    addLog('E/F週3日超過チェック（後処理）...');
     efStaff.forEach(s => {
-      // 週ごとに勤務日を集計
-      const weekDaysMap = {}; // weekKey -> [dk, ...]
+      const weekDaysMap = {}; // weekKey -> [dk...]
       dates.forEach(dk => {
         if (assigns[dk] && assigns[dk][s.id]) {
           const wk = getWeekKey(dk);
@@ -1818,14 +1801,12 @@ async function runAutoShift() {
           weekDaysMap[wk].push(dk);
         }
       });
-      // 週3日超えた分を削除
       Object.entries(weekDaysMap).forEach(([wk, days]) => {
-        if (days.length > 3) {
-          const toRemove = days.slice(3); // 4日目以降を削除
-          toRemove.forEach(dk => {
-            if (assigns[dk][s.id] && !assigns[dk][s.id].isManualFixed) {
+        if (days.length > EF_MAX_WEEK_DAYS) {
+          days.slice(EF_MAX_WEEK_DAYS).forEach(dk => {
+            if (!assigns[dk][s.id].isManualFixed) {
               delete assigns[dk][s.id];
-              addLog(`${dk.slice(5)}：${s.name} 週3日超過のため削除`, 'warning');
+              addLog(`${dk.slice(5)}：${s.name} 週${EF_MAX_WEEK_DAYS}日超過→削除`, 'warning');
             }
           });
         }
@@ -1944,23 +1925,23 @@ function validateShift() {
     else if (total < 160) warnings.push(`${s.name}（${s.type}）：月${total.toFixed(1)}h（170h目標に未達）`);
   });
 
-  // E/F weekly limit
-  const efStaff = staff.filter(s => s.type === 'E' || s.type === 'F');
-  const efWeekHours = {};
+  // E/F 週3日制限チェック
+  const efStaff2 = staff.filter(s => s.type === 'E' || s.type === 'F');
+  const efWeekDaysVal = {};
   dates.forEach(dk => {
     const wk = getWeekKey(dk);
-    efStaff.forEach(s => {
+    efStaff2.forEach(s => {
       if (assigns[dk] && assigns[dk][s.id]) {
-        if (!efWeekHours[wk]) efWeekHours[wk] = {};
-        efWeekHours[wk][s.id] = (efWeekHours[wk][s.id] || 0) + (assigns[dk][s.id].work || 0);
+        if (!efWeekDaysVal[wk]) efWeekDaysVal[wk] = {};
+        efWeekDaysVal[wk][s.id] = (efWeekDaysVal[wk][s.id] || 0) + 1;
       }
     });
   });
-  Object.entries(efWeekHours).forEach(([wk, staffHours]) => {
-    Object.entries(staffHours).forEach(([sid, h]) => {
-      if (h > 31) {
+  Object.entries(efWeekDaysVal).forEach(([wk, staffDays]) => {
+    Object.entries(staffDays).forEach(([sid, d]) => {
+      if (d > 3) {
         const s = staff.find(s => s.id === sid);
-        errors.push(`週${wk}：${s?.name} 週${h.toFixed(1)}h（31h超過）`);
+        errors.push(`週${wk}：${s?.name} 週${d}日勤務（3日超過）`);
       }
     });
   });
@@ -2072,20 +2053,23 @@ function renderSummaryTab() {
     html += `</div>`;
   }
 
-  // E/F Weekly Hours
+  // E/F 週別勤務日数
   const efStaff = staff.filter(s => s.type === 'E' || s.type === 'F');
   if (efStaff.length > 0) {
-    html += `<div class="card"><div class="card-title">📅 E/F週別時間</div>`;
+    html += `<div class="card"><div class="card-title">📅 E/F週別勤務日数</div>`;
     const weekKeys = [...new Set(dates.map(dk => getWeekKey(dk)))].sort();
     weekKeys.forEach(wk => {
       const wkDate = fromDateKey(wk);
       html += `<div style="font-size:11px;font-weight:700;color:var(--text-muted);margin:8px 0 4px">${wkDate.getMonth()+1}/${wkDate.getDate()}週</div>`;
       efStaff.forEach(s => {
-        const h = (efWeekHours[wk] && efWeekHours[wk][s.id]) || 0;
-        const isOver = h > 31;
+        let days = 0;
+        dates.forEach(dk => {
+          if (getWeekKey(dk) === wk && assigns[dk] && assigns[dk][s.id]) days++;
+        });
+        const isOver = days > 3;
         html += `<div class="week-row">
           <span><span class="staff-type-badge type-${s.type}">${s.type}</span> ${escHtml(s.name)}</span>
-          <span class="${isOver ? 'week-hours-over' : ''}">${h.toFixed(1)}h / 31h</span>
+          <span class="${isOver ? 'week-hours-over' : ''}">${days}日 / 3日</span>
         </div>`;
       });
     });
