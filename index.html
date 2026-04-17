@@ -1716,18 +1716,24 @@ async function runAutoShift() {
     const efStaff = staff.filter(s => s.type === 'E' || s.type === 'F');
     const efWeekHours = {}; // weekKey -> staffId -> hours
 
+    // 既存の手動固定シフト分を先に週合計に加算
+    dates.forEach(dk => {
+      efStaff.forEach(s => {
+        if (assigns[dk] && assigns[dk][s.id]) {
+          const weekKey = getWeekKey(dk);
+          if (!efWeekHours[weekKey]) efWeekHours[weekKey] = {};
+          if (!efWeekHours[weekKey][s.id]) efWeekHours[weekKey][s.id] = 0;
+          efWeekHours[weekKey][s.id] += assigns[dk][s.id].work || 0;
+        }
+      });
+    });
+
     workingDates.forEach(dk => {
       const dayType = getDayType(dk);
       const isSat = dayType === 'saturday';
       const isDuty = dayType === 'duty';
       if (isDuty) return; // 休日当番日はE/F配置しない（当番者1名のみ）
       if (!assigns[dk]) assigns[dk] = {};
-
-      // Count current workers
-      const curWorkers = Object.keys(assigns[dk]).length;
-      const hasCDEF = staff.some(s =>
-        ['C','D','E','F'].includes(s.type) && assigns[dk][s.id]
-      );
 
       efStaff.forEach(s => {
         if ((paid[s.id] || []).includes(dk)) return;
@@ -1736,15 +1742,18 @@ async function runAutoShift() {
         const req = (requests[s.id] || {})[dk];
         if (req && (req.type === 'ng' || (req.type === 'off' && respectReq))) return;
 
-        // Check weekly 31h limit
+        // 週31h制限チェック（既存分を除いて再計算）
         const weekKey = getWeekKey(dk);
         if (!efWeekHours[weekKey]) efWeekHours[weekKey] = {};
         if (!efWeekHours[weekKey][s.id]) efWeekHours[weekKey][s.id] = 0;
 
+        // 今日既に集計済みの場合は一旦引く（再配置の可能性があるため）
+        const prevWork = (assigns[dk][s.id] ? assigns[dk][s.id].work || 0 : 0);
+        const currentWeekTotal = (efWeekHours[weekKey][s.id] || 0) - prevWork;
+
         const defTimes = DEFAULT_TIMES[s.type];
         let times;
-        if (isDuty) times = DUTY_TIMES;
-        else if (isSat) times = defTimes.saturday;
+        if (isSat) times = defTimes.saturday;
         else times = defTimes.weekday;
 
         if (req && req.type === 'time' && req.start && req.end) {
@@ -1752,20 +1761,21 @@ async function runAutoShift() {
         }
 
         const work = calcWork(times.start, times.end);
-        if ((efWeekHours[weekKey][s.id] || 0) + work > 31) return; // Over weekly limit
+        // 週31h厳格チェック
+        if (currentWeekTotal + work > 31) return;
 
-        // Assign if needed (土曜は2名、平日は3名、CDEF最低1名)
+        // 必要人数が不足している場合のみ配置（ランダム追加なし）
         const newWorkerCount = Object.keys(assigns[dk]).filter(sid => assigns[dk][sid]).length;
         const newHasCDEF = staff.some(s2 => ['C','D','E','F'].includes(s2.type) && assigns[dk][s2.id]);
         const minRequired = isSat ? 2 : 3;
 
-        if (newWorkerCount < minRequired || !newHasCDEF || Math.random() < 0.3) {
+        if (newWorkerCount < minRequired || !newHasCDEF) {
           assigns[dk][s.id] = {
             start: times.start, end: times.end,
             break: calcBreak(timeToMinutes(times.start), timeToMinutes(times.end)),
             work, source: 'auto', isManualFixed: false
           };
-          efWeekHours[weekKey][s.id] = (efWeekHours[weekKey][s.id] || 0) + work;
+          efWeekHours[weekKey][s.id] = currentWeekTotal + work;
         }
       });
     });
