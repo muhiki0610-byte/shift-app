@@ -1286,16 +1286,15 @@ function renderShiftCal(){
       <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;">${cellsHtml}</div>`;
   }
 
-  // 期間は (currentMonth-1)月21日 〜 currentMonth月20日
-  // → 前月 = currentMonth-1月、当月 = currentMonth月
-  // getPeriodDates(y,m) は m月21日〜(m+1)月20日を返す
-  // currentMonth=4 → 4/21〜5/20 → 表示は「4月」と「5月」
-  const m1Month0 = currentMonth - 1; // 0-indexed: currentMonth月
-  const m1Year = m1Month0 < 0 ? currentYear - 1 : currentYear;
-  const m1Month = m1Month0 < 0 ? 11 : m1Month0;
-  const m2Raw = currentMonth + 1; // 翌月(1-indexed)
-  const m2Year = m2Raw > 12 ? currentYear + 1 : currentYear;
-  const m2Month = (m2Raw > 12 ? 1 : m2Raw) - 1; // 0-indexed
+  // currentMonth=4 → 期間 3/21〜4/20 → 3月と4月を表示
+  // 前半月(3月) = currentMonth-1(1-indexed) = currentMonth-2(0-indexed)
+  // 後半月(4月) = currentMonth(1-indexed)   = currentMonth-1(0-indexed)
+  const _sm1 = currentMonth - 2; // 0-indexed: 前半月
+  const m1Year = _sm1 < 0 ? currentYear - 1 : currentYear;
+  const m1Month = _sm1 < 0 ? 11 : _sm1;
+  const _sm2 = currentMonth - 1; // 0-indexed: 後半月
+  const m2Year = _sm2 < 0 ? currentYear - 1 : currentYear;
+  const m2Month = _sm2 < 0 ? 11 : _sm2;
 
   container.innerHTML=buildShiftMonthCal(m1Year,m1Month)+buildShiftMonthCal(m2Year,m2Month);
   }catch(e){
@@ -2326,15 +2325,15 @@ function renderWishArea(pk,pkW,pkDone){
   // 期間は21日〜翌月20日なので2ヶ月分表示
   // currentMonth は表示月（21日〜翌20日の"翌月"番号）
   // 例：currentMonth=5 → 4/21〜5/20 → 4月と5月を表示
-  // 期間は (currentMonth-1)月21日 〜 currentMonth月20日
-  // getPeriodDates(y,m) は m月21日〜(m+1)月20日を返す
-  // currentMonth=6 → 5/21〜6/20 → 表示は「5月」と「6月」
-  const m1Month0 = currentMonth - 1; // 0-indexed: currentMonth月（前半）
-  const m1Year = m1Month0 < 0 ? currentYear - 1 : currentYear;
-  const m1Month = m1Month0 < 0 ? 11 : m1Month0;
-  const m2Raw = currentMonth; // 翌月(1-indexed)
-  const m2Year = m2Raw > 12 ? currentYear + 1 : currentYear;
-  const m2Month = (m2Raw > 12 ? 1 : m2Raw) - 1; // 0-indexed
+  // currentMonth=4 → 期間 3/21〜4/20 → 3月と4月を表示
+  // 前半月(3月) = currentMonth-1(1-indexed) = currentMonth-2(0-indexed)
+  // 後半月(4月) = currentMonth(1-indexed)   = currentMonth-1(0-indexed)
+  const _wm1 = currentMonth - 2; // 0-indexed: 前半月
+  const m1Year = _wm1 < 0 ? currentYear - 1 : currentYear;
+  const m1Month = _wm1 < 0 ? 11 : _wm1;
+  const _wm2 = currentMonth - 1; // 0-indexed: 後半月
+  const m2Year = _wm2 < 0 ? currentYear - 1 : currentYear;
+  const m2Month = _wm2 < 0 ? 11 : _wm2;
 
   el.innerHTML=`
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
