@@ -1600,8 +1600,12 @@ async function runAutoShift() {
         const req = (requests[s.id] || {})[dk];
         if (req && (req.type === 'ng' || (req.type === 'off' && respectReq))) return;
 
-        // Check monthly 170h limit
-        if ((cdHours[s.id] || 0) >= 175) return; // Soft limit
+        // Check monthly 170h limit (厳格に170時間以内)
+        const CD_MAX_HOURS = 170;
+        const defT = DEFAULT_TIMES[s.type];
+        const dayT = isSat ? defT.saturday : defT.weekday;
+        const todayWork = calcWork(dayT.start, dayT.end);
+        if ((cdHours[s.id] || 0) + todayWork > CD_MAX_HOURS) return; // 170h超えるなら配置しない
 
         const defTimes = DEFAULT_TIMES[s.type];
         let times;
@@ -1798,8 +1802,8 @@ function validateShift() {
     dates.forEach(dk => {
       if (assigns[dk] && assigns[dk][s.id]) total += assigns[dk][s.id].work || 0;
     });
-    if (total < 160) warnings.push(`${s.name}（${s.type}）：月${total.toFixed(1)}h（170h目標に未達）`);
-    else if (total > 180) warnings.push(`${s.name}（${s.type}）：月${total.toFixed(1)}h（170h目標を超過）`);
+    if (total > 170) errors.push(`${s.name}（${s.type}）：月${total.toFixed(1)}h（170h上限超過）`);
+    else if (total < 160) warnings.push(`${s.name}（${s.type}）：月${total.toFixed(1)}h（170h目標に未達）`);
   });
 
   // E/F weekly limit
