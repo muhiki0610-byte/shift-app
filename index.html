@@ -1646,7 +1646,18 @@ async function runAutoShift() {
       return cdStaff.slice().sort((a, b) => (cdHours[a.id] || 0) - (cdHours[b.id] || 0));
     }
 
-    workingDates.forEach(dk => {
+    // 週ごとに繁忙日を先に処理するためソート
+    const cdSortedDates = workingDates.slice().sort((a, b) => {
+      const wkA = getWeekKey(a), wkB = getWeekKey(b);
+      if (wkA !== wkB) return wkA < wkB ? -1 : 1;
+      // 同じ週内：繁忙日を先に
+      const busyA = isBusyDay(a) ? 0 : 1;
+      const busyB = isBusyDay(b) ? 0 : 1;
+      if (busyA !== busyB) return busyA - busyB;
+      return a < b ? -1 : 1;
+    });
+
+    cdSortedDates.forEach(dk => {
       const dayType = getDayType(dk);
       const isSat = dayType === 'saturday';
       const isDuty = dayType === 'duty';
@@ -1664,11 +1675,13 @@ async function runAutoShift() {
         const req = (requests[s.id] || {})[dk];
         if (req && (req.type === 'ng' || (req.type === 'off' && respectReq))) return;
 
-        // 週休2日：繁忙日は週5日制限を6日に緩和（なるべく出勤）
+        // 週休2日厳守（繁忙日も例外なし）
         const weekKey = getWeekKey(dk);
         if (!cdWeekDays[s.id]) cdWeekDays[s.id] = {};
-        const maxDays = isBusy ? 6 : 5;
-        if ((cdWeekDays[s.id][weekKey] || 0) >= maxDays) return;
+        if ((cdWeekDays[s.id][weekKey] || 0) >= 5) return;
+
+        // 繁忙日でない日に週の残り枠を使い切っていたら繁忙日のために温存
+        // （繁忙日を後回しにしないよう、weekDatesを繁忙日優先ソートで処理）
 
         // Check monthly 170h limit
         const CD_MAX_HOURS = 170;
