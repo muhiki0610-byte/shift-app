@@ -727,18 +727,20 @@ function minutesToTime(min) {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
-function calcBreak(startMin, endMin) {
+function calcBreak(startMin, endMin, staffType) {
   const duration = endMin - startMin;
+  // E/Fは勤務時に必ず60分休憩
+  if (staffType === 'E' || staffType === 'F') return duration > 0 ? 60 : 0;
   if (duration < 360) return 0;      // < 6h
   if (duration < 480) return 45;     // 6h〜8h
   return 60;                          // >= 8h
 }
 
-function calcWork(start, end) {
+function calcWork(start, end, staffType) {
   const s = timeToMinutes(start);
   const e = timeToMinutes(end);
   if (e <= s) return 0;
-  const breakMin = calcBreak(s, e);
+  const breakMin = calcBreak(s, e, staffType);
   return (e - s - breakMin) / 60;
 }
 
@@ -1321,8 +1323,8 @@ function saveDayEdit(dateKey) {
       const start = document.getElementById(`start-${s.id}`).value;
       const end = document.getElementById(`end-${s.id}`).value;
       const isFixed = document.getElementById(`fixed-${s.id}`).checked;
-      const breakMin = calcBreak(timeToMinutes(start), timeToMinutes(end));
-      const work = calcWork(start, end);
+      const breakMin = calcBreak(timeToMinutes(start), timeToMinutes(end), s.type);
+      const work = calcWork(start, end, s.type);
       assigns[dateKey][s.id] = { start, end, break: breakMin, work, source: 'manual', isManualFixed: isFixed };
     } else {
       delete assigns[dateKey][s.id];
@@ -1732,13 +1734,13 @@ async function runAutoShift() {
         if (req && req.type === 'time' && req.start && req.end) {
           times = { start: req.start, end: req.end };
         }
-        const work = calcWork(times.start, times.end);
+        const work = calcWork(times.start, times.end, s.type);
         const weekTotal = getEFWeekTotal(s.id, weekKey);
         if (weekTotal + work > 31) continue; // 31h超えるならスキップ
 
         assigns[dk][s.id] = {
           start: times.start, end: times.end,
-          break: calcBreak(timeToMinutes(times.start), timeToMinutes(times.end)),
+          break: calcBreak(timeToMinutes(times.start), timeToMinutes(times.end), s.type),
           work, source: 'auto', isManualFixed: false
         };
         addEFWeekTotal(s.id, weekKey, work); // キャッシュ更新
