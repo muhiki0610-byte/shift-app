@@ -1806,6 +1806,32 @@ async function runAutoShift() {
       }
     });
 
+    // Step 5: E/Fの週3日超過分を削除（念のため後処理）
+    addLog('E/F週3日超過チェック...');
+    efStaff.forEach(s => {
+      // 週ごとに勤務日を集計
+      const weekDaysMap = {}; // weekKey -> [dk, ...]
+      dates.forEach(dk => {
+        if (assigns[dk] && assigns[dk][s.id]) {
+          const wk = getWeekKey(dk);
+          if (!weekDaysMap[wk]) weekDaysMap[wk] = [];
+          weekDaysMap[wk].push(dk);
+        }
+      });
+      // 週3日超えた分を削除
+      Object.entries(weekDaysMap).forEach(([wk, days]) => {
+        if (days.length > 3) {
+          const toRemove = days.slice(3); // 4日目以降を削除
+          toRemove.forEach(dk => {
+            if (assigns[dk][s.id] && !assigns[dk][s.id].isManualFixed) {
+              delete assigns[dk][s.id];
+              addLog(`${dk.slice(5)}：${s.name} 週3日超過のため削除`, 'warning');
+            }
+          });
+        }
+      });
+    });
+
     setProgress(80, '検証中...');
     await sleep(50);
 
