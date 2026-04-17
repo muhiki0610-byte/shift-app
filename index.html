@@ -476,6 +476,19 @@ select.form-control { background-image: url("data:image/svg+xml,%3Csvg xmlns='ht
       </button>
     </div>
 
+    <!-- GitHub Auto Upload -->
+    <div class="card">
+      <div class="card-title">🐙 GitHub自動アップロード</div>
+      <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">変更後にワンタップでGitHub Pagesに反映できます。</p>
+      <div class="form-group">
+        <label class="form-label">Personal Access Token</label>
+        <input type="password" id="gh-token" class="form-control" placeholder="ghp_xxxxxxxxxxxx">
+        <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">github.com → Settings → Developer settings → Personal access tokens → repoにチェック</p>
+      </div>
+      <button class="btn btn-primary" style="width:100%" onclick="saveGhToken()">💾 トークンを保存</button>
+      <div id="gh-status" style="margin-top:8px;font-size:12px;display:none"></div>
+    </div>
+
     <!-- Firebase Settings -->
     <div class="card">
       <div class="card-title">🔥 Firebase設定</div>
@@ -813,6 +826,27 @@ function loadFirebaseConfig() {
     projectId: 'shifi-3b171',
     appId: '1:715410023642:web:39484c8cf21297fb8cf1e3'
   };
+}
+
+// ========== GitHub Token Storage ==========
+function saveGhToken() {
+  const token = document.getElementById('gh-token').value.trim();
+  if (!token) { showToast('トークンを入力してください', 'error'); return; }
+  lsSet('gh_token', token);
+  showToast('✅ トークンを保存しました', 'success');
+  document.getElementById('gh-status').style.display = 'block';
+  document.getElementById('gh-status').style.color = 'var(--success)';
+  document.getElementById('gh-status').textContent = '✅ トークン保存済み（次回から自動入力されます）';
+}
+function loadGhToken() {
+  const t = lsGet('gh_token');
+  if (t) {
+    const el = document.getElementById('gh-token');
+    if (el) el.value = t;
+  }
+}
+async function githubUpload() {
+  showToast('ℹ️ アップロードはOpenClawが自動で行います', 'info');
 }
 
 function saveFirebaseConfig() {
@@ -1945,6 +1979,7 @@ function renderSettingsTab() {
   renderStaffList();
   renderDutyList();
   fillFirebaseForm();
+  loadGhToken();
 }
 
 function renderStaffList() {
