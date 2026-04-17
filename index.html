@@ -760,19 +760,19 @@ function lsSet(key, val) {
 }
 
 function loadStaff() { return lsGet('shift_staff') || []; }
-function saveStaff(d) { lsSet('shift_staff', d); }
+function saveStaff(d) { lsSet('shift_staff', d); pushToFirebase(); }
 
 function loadAssigns() { return lsGet('shift_assigns') || {}; }
-function saveAssigns(d) { lsSet('shift_assigns', d); }
+function saveAssigns(d) { lsSet('shift_assigns', d); pushToFirebase(); }
 
 function loadRequests() { return lsGet('shift_requests') || {}; }
-function saveRequests(d) { lsSet('shift_requests', d); }
+function saveRequests(d) { lsSet('shift_requests', d); pushToFirebase(); }
 
 function loadDuties() { return lsGet('shift_duties') || {}; }
-function saveDuties(d) { lsSet('shift_duties', d); }
+function saveDuties(d) { lsSet('shift_duties', d); pushToFirebase(); }
 
 function loadPaid() { return lsGet('shift_paid') || {}; }
-function savePaid(d) { lsSet('shift_paid', d); }
+function savePaid(d) { lsSet('shift_paid', d); pushToFirebase(); }
 
 function getPeriodAssigns() {
   const all = loadAssigns();
@@ -896,12 +896,61 @@ async function connectFirebase() {
     await firebaseDB.ref('.info/connected').once('value');
     firebaseConnected = true;
     setFirebaseStatus('connected');
-    showToast('Firebaseに接続しました', 'success');
+    showToast('Firebaseに接続しました。リアルタイム同期が有効です', 'success');
+    // リアルタイムリスナー開始
+    startRealtimeSync();
   } catch(e) {
     console.error('Firebase connect error:', e);
     firebaseConnected = false;
     setFirebaseStatus('disconnected');
     showToast('Firebase接続エラー: ' + e.message, 'error');
+  }
+}
+
+// ========== リアルタイム同期 ==========
+let realtimeListener = null;
+let isSyncing = false; // 自分の書き込みによる受信ループを防ぐ
+
+function startRealtimeSync() {
+  if (!firebaseDB) return;
+  // 既存リスナーを解除
+  if (realtimeListener) {
+    firebaseDB.ref('shiftapp').off('value', realtimeListener);
+  }
+  realtimeListener = firebaseDB.ref('shiftapp').on('value', (snap) => {
+    if (isSyncing) return; // 自分の書き込み中はスキップ
+    const data = snap.val();
+    if (!data) return;
+    // localStorageのみ更新（pushToFirebaseを呼ばない）
+    if (data.staff) lsSet('shift_staff', data.staff);
+    if (data.assigns) lsSet('shift_assigns', data.assigns);
+    if (data.requests) lsSet('shift_requests', data.requests);
+    if (data.duties) lsSet('shift_duties', data.duties);
+    if (data.paid) lsSet('shift_paid', data.paid);
+    // 画面を再描画
+    refreshCurrentTab();
+    showToast('🔄 データが更新されました', 'info', 2000);
+  }, (err) => {
+    console.error('Realtime sync error:', err);
+  });
+}
+
+async function pushToFirebase() {
+  if (!firebaseConnected || !firebaseDB) return;
+  try {
+    isSyncing = true;
+    const data = {
+      staff: loadStaff(),
+      assigns: loadAssigns(),
+      requests: loadRequests(),
+      duties: loadDuties(),
+      paid: loadPaid()
+    };
+    await firebaseDB.ref('shiftapp').set(data);
+  } catch(e) {
+    console.error('Push error:', e);
+  } finally {
+    isSyncing = false;
   }
 }
 
