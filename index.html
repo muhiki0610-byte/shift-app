@@ -1721,6 +1721,9 @@ async function runAutoShift() {
         const req = (requests[s.id] || {})[dk];
         if (req && (req.type === 'ng' || (req.type === 'off' && respectReq))) continue;
 
+        // E/Fは土曜日には入れない（勤務希望がある場合のみ例外）
+        if (isSat && !(req && req.type === 'work')) continue;
+
         // 週31h厳格チェック
         const weekKey = getWeekKey(dk);
         const defTimes = DEFAULT_TIMES[s.type];
