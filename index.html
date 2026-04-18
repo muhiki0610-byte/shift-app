@@ -763,6 +763,11 @@ function lsSet(key, val) {
 
 function loadStaff() { return lsGet('shift_staff') || []; }
 function saveStaff(d) { lsSet('shift_staff', d); pushToFirebase(); }
+// pushToFirebaseをawait付きで呼べるラッパー
+async function saveAndPush(key, d) {
+  lsSet(key, d);
+  await pushToFirebase();
+}
 
 function loadAssigns() { return lsGet('shift_assigns') || {}; }
 function saveAssigns(d) { lsSet('shift_assigns', d); pushToFirebase(); }
@@ -923,15 +928,26 @@ function startRealtimeSync() {
     if (isSyncing) return; // 自分の書き込み中はスキップ
     const data = snap.val();
     if (!data) return;
-    // localStorageのみ更新（pushToFirebaseを呼ばない）
+    // localStorageのみ更新（pushToFirebaseを呼ばない・ループ防止）
+    let assignsChanged = false;
+    let requestsChanged = false;
     if (data.staff) lsSet('shift_staff', data.staff);
-    if (data.assigns) lsSet('shift_assigns', data.assigns);
-    if (data.requests) lsSet('shift_requests', data.requests);
+    if (data.assigns) {
+      const prev = JSON.stringify(lsGet('shift_assigns'));
+      if (JSON.stringify(data.assigns) !== prev) { assignsChanged = true; }
+      lsSet('shift_assigns', data.assigns);
+    }
+    if (data.requests) {
+      const prev = JSON.stringify(lsGet('shift_requests'));
+      if (JSON.stringify(data.requests) !== prev) { requestsChanged = true; }
+      lsSet('shift_requests', data.requests);
+    }
     if (data.duties) lsSet('shift_duties', data.duties);
     if (data.paid) lsSet('shift_paid', data.paid);
     // 画面を再描画
     refreshCurrentTab();
-    showToast('🔄 データが更新されました', 'info', 2000);
+    if (assignsChanged) showToast('📅 シフトが更新されました', 'info', 3000);
+    else if (requestsChanged) showToast('✏️ 希望が更新されました', 'info', 2000);
   }, (err) => {
     console.error('Realtime sync error:', err);
   });
@@ -1503,7 +1519,10 @@ function saveReqEdit(dateKey, staffId) {
   savePeriodRequests(requests);
   savePeriodPaid(paid);
   closeModal('req-edit-overlay');
-  showToast('希望を保存しました', 'success');
+  showToast('💾 希望を保存・共有しています...', 'info', 1500);
+  pushToFirebase().then(() => {
+    showToast('✅ 希望を保存しました（全員に反映済み）', 'success', 3000);
+  });
   renderRequestTab();
 }
 
@@ -1515,7 +1534,9 @@ function clearReqEdit(dateKey, staffId) {
   if (paid[staffId]) paid[staffId] = paid[staffId].filter(d => d !== dateKey);
   savePeriodPaid(paid);
   closeModal('req-edit-overlay');
-  showToast('希望をクリアしました', 'info');
+  pushToFirebase().then(() => {
+    showToast('希望をクリアしました（全員に反映済み）', 'info', 3000);
+  });
   renderRequestTab();
 }
 
@@ -1949,18 +1970,20 @@ async function runAutoShift() {
       });
     });
 
-    setProgress(100, '完了');
+    setProgress(95, 'Firebaseに同期中...');
     savePeriodAssigns(assigns);
+    await pushToFirebase(); // 完了を確実に待つ
+    setProgress(100, '完了');
 
     if (errors.length > 0) {
       errors.forEach(e => addLog(e, 'error'));
       resultEl.innerHTML = `<div class="alert alert-error">⚠️ ${errors.length}件のエラーがあります。シフトタブで確認してください。</div>`;
     } else {
-      resultEl.innerHTML = `<div class="alert alert-success">✅ 自動シフト作成完了！</div>`;
+      resultEl.innerHTML = `<div class="alert alert-success">✅ 自動シフト作成完了！全員に共有されました。</div>`;
     }
 
-    addLog('自動作成完了', 'success');
-    showToast('自動シフト作成が完了しました', 'success');
+    addLog('自動作成完了・Firebase同期済み', 'success');
+    showToast('✅ 自動シフト作成完了！全員に共有されました', 'success', 4000);
 
     setTimeout(() => { progressWrap.style.display = 'none'; }, 1500);
 
