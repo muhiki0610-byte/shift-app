@@ -145,7 +145,7 @@ select.form-control { background-image: url("data:image/svg+xml,%3Csvg xmlns='ht
 .date-sun { color: #dc2626; }
 .date-sat { color: #2563eb; }
 .date-hol { color: #7c3aed; }
-.date-today { background: #fef9c3 !important; }
+.date-today { background: #fef9c3 !important; outline: 2px solid #f59e0b; outline-offset: -2px; }
 .shift-badge {
   display: inline-block; padding: 2px 5px; border-radius: 4px;
   font-size: 10px; font-weight: 600; white-space: nowrap; margin: 1px;
@@ -2572,9 +2572,11 @@ function escHtml(str) {
 
 // ========== Init ==========
 function init() {
-  initCurrentPeriod();
+  initCurrentPeriod(); // 常に今日の日付から現在の期間を計算してセット
   document.getElementById('period-label').textContent = `${currentYear}年${currentMonth}月`;
   renderShiftTab();
+  // 今日の行へスクロール（少し遅延して確実に描画後にスクロール）
+  setTimeout(() => scrollToToday(), 500);
 
   // Sample data for first run
   const staff = loadStaff();
@@ -2594,6 +2596,14 @@ function init() {
 
   // 起動時に自動でFirebaseに接続・同期開始
   connectFirebase().catch(e => console.warn('Firebase auto-connect failed:', e));
+}
+
+// 今日の行へスクロール
+function scrollToToday() {
+  const todayRow = document.querySelector('.date-today');
+  if (todayRow) {
+    todayRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
 }
 
 // Run on DOM ready
