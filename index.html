@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>薬局シフト管理</title>
 <style>
 /* ========== CSS Variables ========== */
@@ -900,17 +903,21 @@ async function connectFirebase() {
     await firebaseDB.ref('.info/connected').once('value');
     firebaseConnected = true;
     setFirebaseStatus('connected');
-    // 接続直後にFirebaseの最新データを取得して上書き
+    // 接続直後にFirebaseの最新データを取得して必ず上書き
     const snap = await firebaseDB.ref('shiftapp').once('value');
     const data = snap.val();
     if (data) {
-      if (data.staff) lsSet('shift_staff', data.staff);
-      if (data.assigns) lsSet('shift_assigns', data.assigns);
-      if (data.requests) lsSet('shift_requests', data.requests);
-      if (data.duties) lsSet('shift_duties', data.duties);
-      if (data.paid) lsSet('shift_paid', data.paid);
+      if (data.staff)   lsSet('shift_staff',   data.staff);
+      if (data.assigns) lsSet('shift_assigns',  data.assigns);
+      if (data.requests)lsSet('shift_requests', data.requests);
+      if (data.duties)  lsSet('shift_duties',   data.duties);
+      if (data.paid)    lsSet('shift_paid',      data.paid);
+      // 期間を今日基準に再計算してから再描画
+      initCurrentPeriod();
+      document.getElementById('period-label').textContent = `${currentYear}年${currentMonth}月`;
       refreshCurrentTab();
-      showToast('✅ 最新のシフトデータを取得しました', 'success', 3000);
+      setTimeout(() => scrollToToday(), 300);
+      showToast('✅ 最新データを取得しました', 'success', 3000);
     } else {
       showToast('Firebaseに接続しました', 'success', 2000);
     }
