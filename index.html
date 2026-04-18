@@ -903,8 +903,21 @@ async function connectFirebase() {
     await firebaseDB.ref('.info/connected').once('value');
     firebaseConnected = true;
     setFirebaseStatus('connected');
-    showToast('Firebaseに接続しました。リアルタイム同期が有効です', 'success');
-    // リアルタイムリスナー開始
+    // 接続直後にFirebaseの最新データを取得して上書き
+    const snap = await firebaseDB.ref('shiftapp').once('value');
+    const data = snap.val();
+    if (data) {
+      if (data.staff) lsSet('shift_staff', data.staff);
+      if (data.assigns) lsSet('shift_assigns', data.assigns);
+      if (data.requests) lsSet('shift_requests', data.requests);
+      if (data.duties) lsSet('shift_duties', data.duties);
+      if (data.paid) lsSet('shift_paid', data.paid);
+      refreshCurrentTab();
+      showToast('✅ 最新のシフトデータを取得しました', 'success', 3000);
+    } else {
+      showToast('Firebaseに接続しました', 'success', 2000);
+    }
+    // リアルタイムリスナー開始（以降の変更を自動受信）
     startRealtimeSync();
   } catch(e) {
     console.error('Firebase connect error:', e);
@@ -2581,6 +2594,9 @@ function init() {
     showToast('サンプルスタッフを追加しました。設定タブで編集できます。', 'info', 5000);
     renderShiftTab();
   }
+
+  // 起動時に自動でFirebaseに接続・同期開始
+  connectFirebase().catch(e => console.warn('Firebase auto-connect failed:', e));
 }
 
 // Run on DOM ready
