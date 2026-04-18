@@ -876,14 +876,16 @@ function fillFirebaseForm() {
 }
 
 // ========== Firebase Connection ==========
+// Firebase設定（固定）
+const FIREBASE_CONFIG = {
+  apiKey: 'AIzaSyDpNARQYlai0slDYnFtC5e7uyYKIXx0StI',
+  databaseURL: 'https://shifi-3b171-default-rtdb.asia-southeast1.firebasedatabase.app',
+  projectId: 'shifi-3b171',
+  appId: '1:715410023642:web:39484c8cf21297fb8cf1e3'
+};
+
 async function connectFirebase() {
   setFirebaseStatus('connecting');
-  const cfg = loadFirebaseConfig();
-  if (!cfg.apiKey || !cfg.databaseURL) {
-    showToast('Firebase設定を入力してください', 'error');
-    setFirebaseStatus('disconnected');
-    return;
-  }
   try {
     if (!window.firebase) {
       await loadScript('https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js');
@@ -892,12 +894,7 @@ async function connectFirebase() {
     if (firebaseApp) {
       try { await firebaseApp.delete(); } catch(e) {}
     }
-    firebaseApp = firebase.initializeApp({
-      apiKey: cfg.apiKey,
-      databaseURL: cfg.databaseURL,
-      projectId: cfg.projectId,
-      appId: cfg.appId
-    }, 'shift-app-' + Date.now());
+    firebaseApp = firebase.initializeApp(FIREBASE_CONFIG, 'shift-app-' + Date.now());
     firebaseDB = firebase.database(firebaseApp);
     // Test connection
     await firebaseDB.ref('.info/connected').once('value');
@@ -923,7 +920,7 @@ async function connectFirebase() {
     console.error('Firebase connect error:', e);
     firebaseConnected = false;
     setFirebaseStatus('disconnected');
-    showToast('Firebase接続エラー: ' + e.message, 'error');
+    showToast('⚠️ オフラインです。インターネット接続を確認してください', 'error', 5000);
   }
 }
 
